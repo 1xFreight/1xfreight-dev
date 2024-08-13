@@ -11,6 +11,9 @@ import { AuthService } from './auth.service';
 import { MagicLoginStrategy } from './strategy/magiclogin.strategy';
 import { PasswordLessLoginDto } from './dto/passwordless-login.dto';
 import { AuthGuard } from '@nestjs/passport';
+import { PasswordLoginDto } from './dto/password-login.dto';
+import { cookieConfig } from '../common/config/cookie-config.const';
+import { CreateUserDto } from './dto/create-user.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -23,6 +26,33 @@ export class AuthController {
   async login(@Req() req, @Res() res, @Body() body: PasswordLessLoginDto) {
     await this._authService.validateUser(body.destination);
     return this.strategy.send(req, res);
+  }
+
+  @Post('/login-pass')
+  async loginPass(
+    @Req() req,
+    @Res({ passthrough: true }) res,
+    @Body() body: PasswordLoginDto,
+  ) {
+    const token = await this._authService.loginUser(body.email, body.password);
+
+    if (!token) return 'Invalid credentials';
+
+    res.cookie('accessToken', token, cookieConfig);
+    return true;
+  }
+
+  @Post('/create-user')
+  async createNewUser(
+    @Res({ passthrough: true }) res,
+    @Body() body: CreateUserDto,
+  ) {
+    try {
+      await this._authService.createUser(body.email, body.password, body.role);
+      return true;
+    } catch (e) {
+      return e.errmsg;
+    }
   }
 
   @UseGuards(AuthGuard('magiclogin'))

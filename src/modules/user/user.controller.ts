@@ -1,5 +1,9 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get } from '@nestjs/common';
 import { UserService } from './user.service';
+import { Auth } from '../auth/decorators/auth.decorator';
+import { User } from './decorators/user.decorator';
+import { UserDto } from './dto/user.dto';
+import { plainToInstance } from 'class-transformer';
 
 @Controller('users')
 export class UserController {
@@ -7,11 +11,14 @@ export class UserController {
 
   @Get('/create-test')
   async createTest() {
-    return this._userService.create();
+    // return this._userService.create();
   }
 
-  @Get('/find-test/:email')
-  async findTest(@Param('email') email: string) {
-    return this._userService.findOneByEmail(email);
+  @Auth()
+  @Get('/me')
+  async me(@User() user): Promise<UserDto> {
+    const _user = await this._userService.findOneByEmail(user.email);
+    console.log(_user);
+    return plainToInstance(UserDto, _user, { excludeExtraneousValues: true });
   }
 }

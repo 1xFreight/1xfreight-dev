@@ -9,15 +9,11 @@ export class UserService {
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
   ) {}
 
-  create() {
-    return this.userModel.create({
-      name: 'testUser1',
-      email: 'testEmail1@xxx.xxx',
-      role: 'test',
-    });
+  async create(user: { email: string; password?: string; role?: string }) {
+    return (await this.userModel.create(user)).save();
   }
 
-  async findOneByEmail(email: string) {
-    return this.userModel.findOne({ email });
+  async findOneByEmail(email: string): Promise<UserDocument | null> {
+    return this.userModel.findOne({ email }).exec();
   }
 }

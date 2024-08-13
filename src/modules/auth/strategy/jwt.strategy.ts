@@ -8,10 +8,19 @@ import * as process from 'process';
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(private _authService: AuthService) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromExtractors([JwtStrategy.extractJWT]),
       ignoreExpiration: false,
       secretOrKey: process.env.JWT_SECRET,
     });
+  }
+
+  private static extractJWT(req): string | null {
+    const token = req?.rawHeaders
+      ?.find((header) => header.includes('accessToken'))
+      ?.replace('accessToken=', '');
+
+    if (token) return token;
+    return null;
   }
 
   async validate(payload: { email: string }) {
