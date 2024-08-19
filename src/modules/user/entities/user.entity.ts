@@ -1,8 +1,11 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
-import { UserRolesEnum } from '../common/enums/roles.enum';
-import { UserStatusEnum } from '../common/enums/user-status.enum';
-import { CurrencyEnum } from '../common/enums/currency.enum';
+import { UserRolesEnum } from '../../common/enums/roles.enum';
+import { UserStatusEnum } from '../../common/enums/user-status.enum';
+import { CurrencyEnum } from '../../common/enums/currency.enum';
+import { Quote } from '../../quote/entities/quote.entity';
+import { Address } from '../../address/address.entity';
+import { QuoteTypeEnum } from '../../common/enums/quote-type.enum';
 
 export type UserDocument = User & Document;
 
@@ -43,26 +46,32 @@ export class User {
   @Prop({ enum: CurrencyEnum, default: CurrencyEnum.USD })
   currency: string;
 
-  @Prop({ name: 'referral_id' })
-  referralId: string;
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  referral_id: User;
 
   @Prop({ default: false })
-  autoPickup: boolean;
+  auto_pickup: boolean;
 
   @Prop({ default: false })
-  autoDelivery: boolean;
+  auto_delivery: boolean;
 
   @Prop({ default: false })
-  autoCommodity: boolean;
+  auto_commodity: boolean;
 
-  @Prop({ name: 'default_comment' })
-  defaultComment: string;
+  @Prop()
+  default_comment: string;
 
   @Prop()
   company: string;
 
-  @Prop()
+  @Prop({ enum: QuoteTypeEnum, default: QuoteTypeEnum.QUOTE })
   quote_type: string;
+
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Quote' }] })
+  quotes: Quote[];
+
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Address' }] })
+  saved_addresses: Address[];
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

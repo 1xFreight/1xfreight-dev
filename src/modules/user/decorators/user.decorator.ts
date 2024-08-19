@@ -1,6 +1,6 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { User as UserEntity } from '../user.entity';
+import { User as UserEntity } from '../entities/user.entity';
 
 export const User = createParamDecorator(
   async (data: unknown, ctx: ExecutionContext): Promise<UserEntity> => {

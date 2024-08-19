@@ -14,6 +14,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { PasswordLoginDto } from './dto/password-login.dto';
 import { cookieConfig } from '../common/config/cookie-config.const';
 import { CreateUserDto } from './dto/create-user.dto';
+import { Auth } from './decorators/auth.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -59,5 +60,12 @@ export class AuthController {
   @Get('login/callback')
   callback(@Req() req) {
     return this._authService.generateTokens(req.user);
+  }
+
+  @Auth()
+  @Post('/logout')
+  logout(@Res({ passthrough: true }) res) {
+    res.clearCookie('accessToken');
+    return true;
   }
 }

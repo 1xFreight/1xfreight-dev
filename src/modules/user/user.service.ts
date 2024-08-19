@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { User, UserDocument } from './user.entity';
+import { User, UserDocument } from './entities/user.entity';
 import { Model } from 'mongoose';
 
 @Injectable()
@@ -15,5 +15,9 @@ export class UserService {
 
   async findOneByEmail(email: string): Promise<UserDocument | null> {
     return this.userModel.findOne({ email }).exec();
+  }
+
+  async updateUserInfo(newUserData: Partial<User>, user_id: string) {
+    return this.userModel.updateOne({ _id: user_id }, newUserData).exec();
   }
 }

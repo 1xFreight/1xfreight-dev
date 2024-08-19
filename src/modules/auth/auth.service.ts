@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { UserService } from '../user/user.service';
 import { JwtService } from '@nestjs/jwt';
-import { User } from '../user/user.entity';
+import { User } from '../user/entities/user.entity';
 import * as process from 'process';
 import * as bcrypt from 'bcrypt';
 
@@ -14,8 +14,9 @@ export class AuthService {
 
   generateTokens(user: User) {
     const payload = {
-      sub: user._id,
+      _id: user._id,
       email: user.email,
+      role: user.role,
     };
 
     return this._jwtService.sign(payload, {
