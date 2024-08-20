@@ -33,6 +33,9 @@ export class Quote {
   @Prop({ required: true, type: Types.ObjectId, ref: 'User' })
   user_id: User;
 
+  @Prop({ required: false, type: Types.ObjectId, ref: 'User' })
+  referral_id: User;
+
   @Prop({ required: true, enum: CurrencyEnum, default: CurrencyEnum.USD })
   currency: string;
 

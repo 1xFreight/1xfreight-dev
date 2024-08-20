@@ -32,7 +32,28 @@ export class Carrier {
   state: string;
 
   @Prop()
-  status: string;
+  safety_rating: string;
+
+  @Prop()
+  authority: string; // Authority granted on
+
+  @Prop()
+  total_us_inspect: number;
+
+  @Prop()
+  total_can_inspect: number; // Canadian
+
+  @Prop()
+  fleetSize: string;
+
+  @Prop()
+  insurance_general: string;
+
+  @Prop()
+  insurance_auto: string;
+
+  @Prop()
+  insurance_cargo: string;
 
   @Prop()
   mc: string;

@@ -9,7 +9,7 @@ export class UserService {
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
   ) {}
 
-  async create(user: { email: string; password?: string; role?: string }) {
+  async create(user: Partial<User>) {
     return (await this.userModel.create(user)).save();
   }
 
@@ -19,5 +19,9 @@ export class UserService {
 
   async updateUserInfo(newUserData: Partial<User>, user_id: string) {
     return this.userModel.updateOne({ _id: user_id }, newUserData).exec();
+  }
+
+  async findMembers(user_id: string) {
+    return this.userModel.find({ referral_id: user_id }).exec();
   }
 }

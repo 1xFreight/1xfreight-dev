@@ -8,6 +8,7 @@ import { UserModule } from './modules/user/user.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { QuoteModule } from './modules/quote/quote.module';
 import { AddressModule } from './modules/address/address.module';
+import { CarrierModule } from './modules/carrier/carrier.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { AddressModule } from './modules/address/address.module';
     AuthModule,
     QuoteModule,
     AddressModule,
+    CarrierModule,
   ],
   controllers: [AppController],
   providers: [AppService],

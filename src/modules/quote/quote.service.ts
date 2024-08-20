@@ -34,7 +34,11 @@ export class QuoteService {
 
   async getUserQuotes(user_id: string, limit?: number) {
     const _aggregate: any[] = [
-      { $match: { user_id: user_id } },
+      {
+        $match: {
+          $or: [{ user_id: user_id }, { referral_id: user_id }],
+        },
+      },
       { $sort: { createdAt: -1 } },
       {
         $lookup: {
@@ -65,8 +69,6 @@ export class QuoteService {
   async createQuoteFTL(quote: any, user: User) {
     const { pickup, drop, shipment_details, review, members, partners } = quote;
 
-    console.log(shipment_details);
-
     const quoteObj = {
       type: QuoteEnum.FTL,
       status: QuoteStatusEnum.REQUESTED,
@@ -76,6 +78,10 @@ export class QuoteService {
       deadline_date: review.deadline_date,
       deadline_time: review.deadline_time,
     };
+
+    if (user.referral_id) {
+      quoteObj['referral_id'] = user.referral_id;
+    }
 
     shipment_details?.references?.length
       ? (quoteObj['references'] = shipment_details?.references.map(
@@ -117,19 +123,19 @@ export class QuoteService {
         },
         {
           $lookup: {
-            from: 'quotes', // Assuming your quotes collection is named 'quotes'
+            from: 'quotes',
             localField: 'quote_id',
             foreignField: '_id',
             as: 'quote_data',
           },
         },
         {
-          $unwind: '$quote_data', // Unwind the populated quotes
+          $unwind: '$quote_data',
         },
         {
           $lookup: {
             from: 'addresses',
-            localField: 'quote_data._id', // Using the _id from the populated quote
+            localField: 'quote_data._id',
             foreignField: 'quote_id',
             as: 'quote_data.addresses',
           },
@@ -137,7 +143,7 @@ export class QuoteService {
         {
           $lookup: {
             from: 'shipments',
-            localField: 'quote_data._id', // Using the _id from the populated quote
+            localField: 'quote_data._id',
             foreignField: 'quote_id',
             as: 'quote_data.details',
           },
@@ -153,5 +159,12 @@ export class QuoteService {
         },
       ])
       .exec();
+  }
+
+  async deleteTemplate(user_id: string, template_id: string) {
+    return this._templateModel.deleteOne({
+      user_id: user_id,
+      _id: template_id,
+    });
   }
 }
