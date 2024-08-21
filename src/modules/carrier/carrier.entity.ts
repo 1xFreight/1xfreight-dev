@@ -44,7 +44,7 @@ export class Carrier {
   total_can_inspect: number; // Canadian
 
   @Prop()
-  fleetSize: string;
+  fleet_size: string;
 
   @Prop()
   insurance_general: string;
@@ -56,10 +56,22 @@ export class Carrier {
   insurance_cargo: string;
 
   @Prop()
+  general_expire: string;
+
+  @Prop()
+  auto_expire: string;
+
+  @Prop()
+  cargo_expire: string;
+
+  @Prop()
   mc: string;
 
   @Prop()
   dot: string;
+
+  @Prop({ type: [String] })
+  tags: string[];
 
   @Prop({ type: Types.ObjectId, ref: 'User' })
   user_id: User;
