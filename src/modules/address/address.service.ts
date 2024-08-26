@@ -18,7 +18,21 @@ export class AddressService {
     return this._addressModel.find({ quote_id: quote_id }).exec();
   }
 
-  async findByUser(user_id: string) {
-    return this._addressModel.find({ user_id: user_id }).exec();
+  async findByUser(user_id: string, searchText?: string, limit?: number) {
+    const searchQuery: any = {
+      user_id: user_id,
+    };
+
+    if (searchText) {
+      searchQuery.address = { $regex: searchText, $options: 'i' };
+    }
+
+    let query = this._addressModel.find(searchQuery);
+
+    if (limit) {
+      query = query.limit(limit);
+    }
+
+    return query.exec();
   }
 }

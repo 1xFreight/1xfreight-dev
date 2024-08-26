@@ -13,7 +13,7 @@ import {
 import { Shipment, ShipmentSchema } from '../quote/entities/shipment.entity';
 import { Quote, QuoteSchema } from '../quote/entities/quote.entity';
 import { Template, TemplateSchema } from '../quote/entities/template.entity';
-import { Carrier, CarrierSchema } from '../carrier/carrier.entity';
+import { Carrier, CarrierSchema } from '../carrier/entitites/carrier.entity';
 
 export default [
   {

@@ -1,4 +1,11 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
 import { UserService } from './user.service';
 import { Auth } from '../auth/decorators/auth.decorator';
 import { User } from './decorators/user.decorator';
@@ -7,10 +14,16 @@ import { plainToInstance } from 'class-transformer';
 import { UserUpdateDto } from './dto/user-update.dto';
 import { UserMemberDto } from './dto/user-member.dto';
 import { UserRolesEnum } from '../common/enums/roles.enum';
+import { User as UserEntity } from './entities/user.entity';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { FileSystemService } from '../files/file.service';
 
 @Controller('users')
 export class UserController {
-  constructor(private readonly _userService: UserService) {}
+  constructor(
+    private readonly _userService: UserService,
+    private readonly _fileSystemService: FileSystemService,
+  ) {}
 
   @Get('/create-test')
   async createTest() {
@@ -51,5 +64,27 @@ export class UserController {
         excludeExtraneousValues: true,
       }),
     );
+  }
+
+  @Auth()
+  @Post('/update-member')
+  async updateMemberInfo(@User() user, @Body() body: Partial<UserEntity>) {
+    return !!(await this._userService.updateMemberInfo(body, user._id));
+  }
+
+  @Auth()
+  @Post('upload-logo')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadFile(@UploadedFile() file: Express.Multer.File, @User() user) {
+    if (user.logo) {
+      try {
+        await this._fileSystemService.deleteImage(user.logo);
+      } catch {}
+    }
+    const imageId = await this._fileSystemService.storeImage(file);
+    return !!(await this._userService.updateUserInfo(
+      { logo: imageId },
+      user._id,
+    ));
   }
 }

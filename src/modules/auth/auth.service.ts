@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { UserService } from '../user/user.service';
 import { JwtService } from '@nestjs/jwt';
 import { User } from '../user/entities/user.entity';
@@ -48,10 +52,39 @@ export class AuthService {
   async loginUser(email: string, password: string) {
     const user = await this._userService.findOneByEmail(email);
 
+    if (!user) {
+      throw new BadRequestException(
+        'No account was found associated with the provided email address. Please verify and try again.',
+      );
+    }
+
     if (user && user.password) {
       const match = await bcrypt.compare(password, user.password);
       if (match) return this.generateTokens(user);
+      throw new BadRequestException(
+        'The password entered is incorrect. Please verify your credentials and try again.',
+      );
     }
     return false;
+  }
+
+  async changeUserPassword(user_id: string, newPassword: string) {
+    const user = await this._userService.findOneById(user_id);
+
+    if (user && user.password) {
+      const match = await bcrypt.compare(newPassword, user.password);
+
+      if (match) {
+        throw new BadRequestException('Password cant be the same');
+      }
+    }
+
+    const salt = await bcrypt.genSalt();
+    const hashPassword = await bcrypt.hash(newPassword, salt);
+
+    return this._userService.updateUserInfo(
+      { password: hashPassword },
+      user_id,
+    );
   }
 }

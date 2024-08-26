@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Carrier, CarrierDocument } from './carrier.entity';
+import { Carrier, CarrierDocument } from './entitites/carrier.entity';
 import { Model } from 'mongoose';
 import { HttpService } from '@nestjs/axios';
 import * as process from 'process';
@@ -20,6 +20,12 @@ export class CarrierService {
 
   async getUserCarriers(user_id: string) {
     return this._carrierModel.find({ user_id }).exec();
+  }
+
+  async updateCarrierInfo(user_id: string, carrier: Partial<Carrier>) {
+    return this._carrierModel
+      .updateOne({ user_id, _id: carrier._id }, carrier)
+      .exec();
   }
 
   async create(carrier: Partial<Carrier>, user_id: string) {
@@ -149,7 +155,6 @@ export class CarrierService {
     }
 
     if (insurance) {
-      console.log(insurance);
       const getInsuranceType = (text: string) => {
         if (text.toLowerCase().includes('cargo')) return 'cargo';
         if (text.toLowerCase().includes('auto')) return 'auto';

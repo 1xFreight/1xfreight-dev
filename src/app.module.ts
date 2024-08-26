@@ -9,6 +9,8 @@ import { AuthModule } from './modules/auth/auth.module';
 import { QuoteModule } from './modules/quote/quote.module';
 import { AddressModule } from './modules/address/address.module';
 import { CarrierModule } from './modules/carrier/carrier.module';
+import { FileSystemModule } from './modules/files/file.module';
+import { MulterModule } from '@nestjs/platform-express';
 
 @Module({
   imports: [
@@ -21,6 +23,10 @@ import { CarrierModule } from './modules/carrier/carrier.module';
     QuoteModule,
     AddressModule,
     CarrierModule,
+    FileSystemModule,
+    MulterModule.register({
+      dest: './uploads',
+    }),
   ],
   controllers: [AppController],
   providers: [AppService],

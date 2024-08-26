@@ -15,6 +15,7 @@ import { PasswordLoginDto } from './dto/password-login.dto';
 import { cookieConfig } from '../common/config/cookie-config.const';
 import { CreateUserDto } from './dto/create-user.dto';
 import { Auth } from './decorators/auth.decorator';
+import { User } from '../user/decorators/user.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -67,5 +68,14 @@ export class AuthController {
   logout(@Res({ passthrough: true }) res) {
     res.clearCookie('accessToken');
     return true;
+  }
+
+  @Auth()
+  @Post('/change-password')
+  async changeUserPassword(@User() user, @Body() body) {
+    return !!(await this._authService.changeUserPassword(
+      user._id,
+      body?.password,
+    ));
   }
 }

@@ -1,7 +1,15 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { CarrierService } from './carrier.service';
 import { Auth } from '../auth/decorators/auth.decorator';
 import { User } from '../user/decorators/user.decorator';
+import { Carrier } from './entitites/carrier.entity';
 
 @Controller('/carrier')
 export class CarrierController {
@@ -27,6 +35,22 @@ export class CarrierController {
   @Auth()
   @Post('/create')
   async createCarrier(@User() user, @Body() body) {
-    return !!(await this._carrierService.create(body, user._id));
+    try {
+      await this._carrierService.create(body, user._id);
+    } catch (e) {
+      if (e.code === 11000) {
+        throw new BadRequestException(
+          `Email ${body?.email} is already associated with a carrier`,
+        );
+      }
+    }
+
+    return true;
+  }
+
+  @Auth()
+  @Post('/update')
+  async updateCarrierInfo(@User() user, @Body() body: Partial<Carrier>) {
+    return await this._carrierService.updateCarrierInfo(user._id, body);
   }
 }

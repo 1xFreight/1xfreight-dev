@@ -64,6 +64,12 @@ export class User {
   @Prop()
   company: string;
 
+  @Prop()
+  logo: string;
+
+  @Prop({ type: [String] })
+  equipments: string[];
+
   @Prop({ enum: QuoteTypeEnum, default: QuoteTypeEnum.QUOTE })
   quote_type: string;
 

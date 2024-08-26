@@ -5,6 +5,9 @@ export class UserDto {
   position: string;
 
   @Expose()
+  _id: string;
+
+  @Expose()
   name: string;
 
   @Expose()
@@ -33,6 +36,15 @@ export class UserDto {
 
   @Expose()
   role: string;
+
+  @Expose()
+  logo: string;
+
+  @Expose()
+  referral_id: string;
+
+  @Expose()
+  equipments: string[];
 
   @Exclude()
   password: string;

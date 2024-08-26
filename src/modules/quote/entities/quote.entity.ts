@@ -59,6 +59,9 @@ export class Quote {
 
   @Prop({ type: [String] })
   references: string[];
+
+  @Prop({ type: [String] })
+  equipments: string[];
 }
 
 export const QuoteSchema = SchemaFactory.createForClass(Quote);
