@@ -1,12 +1,4 @@
-import {
-  Controller,
-  Post,
-  UploadedFile,
-  UseInterceptors,
-  Get,
-  Param,
-  Res,
-} from '@nestjs/common';
+import { Controller, Get, Param, Res } from '@nestjs/common';
 import { FileSystemService } from './file.service';
 import { Response } from 'express';
 import { Auth } from '../auth/decorators/auth.decorator';
@@ -26,8 +18,28 @@ export class FileSystemController {
 
   @Get('image/:id')
   async getImage(@Param('id') id: string, @Res() res: Response) {
-    const image = await this.fileSystemService.getImage(id);
-    res.setHeader('Content-Type', 'image/jpeg'); // Adjust based on the image type
-    res.send(image);
+    const { data, filename, contentType } =
+      await this.fileSystemService.getImage(id);
+
+    res.set({
+      'Content-Type': contentType,
+      'Content-Disposition': `attachment; filename="${filename}"`,
+    });
+
+    res.send(data);
+  }
+
+  @Auth()
+  @Get('document/:id')
+  async getDocument(@Param('id') id: string, @Res() res: Response) {
+    const { data, filename, contentType } =
+      await this.fileSystemService.getImage(id);
+
+    res.set({
+      'Content-Type': contentType,
+      'Content-Disposition': `attachment; filename="${filename}"`,
+    });
+
+    res.send(data);
   }
 }

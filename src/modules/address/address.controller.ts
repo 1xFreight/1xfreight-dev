@@ -3,6 +3,9 @@ import { AddressService } from './address.service';
 import { Auth } from '../auth/decorators/auth.decorator';
 import { User } from '../user/decorators/user.decorator';
 import { Address } from './address.entity';
+import { PaginationWithFilters } from '../common/interfaces/pagination.interface';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserRolesEnum } from '../common/enums/roles.enum';
 
 @Controller('/address')
 export class AddressController {
@@ -10,6 +13,11 @@ export class AddressController {
 
   @Auth()
   @Post('/')
+  @Roles([
+    UserRolesEnum.SHIPPER,
+    UserRolesEnum.SHIPPER_DEMO,
+    UserRolesEnum.SHIPPER_MEMBER,
+  ])
   async createUserLocation(@User() user, @Body() body: Partial<Address>) {
     return !!(await this._addressService.create({
       ...body,
@@ -19,18 +27,16 @@ export class AddressController {
 
   @Auth()
   @Get('/')
+  @Roles([
+    UserRolesEnum.SHIPPER,
+    UserRolesEnum.SHIPPER_DEMO,
+    UserRolesEnum.SHIPPER_MEMBER,
+  ])
   async getUserLocations(
     @User() user,
     @Query()
-    params: {
-      searchText: string;
-      limit: number;
-    },
+    params: PaginationWithFilters,
   ) {
-    return this._addressService.findByUser(
-      user._id,
-      params?.searchText,
-      params?.limit,
-    );
+    return this._addressService.findByUser(user._id, params);
   }
 }

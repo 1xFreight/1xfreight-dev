@@ -7,7 +7,7 @@ import { Quote } from './quote.entity';
 export type ShipmentDocument = Shipment & Document;
 
 @Schema({
-  timestamps: false,
+  timestamps: true,
 })
 export class Shipment {
   _id: Types.ObjectId;
@@ -59,9 +59,6 @@ export class Shipment {
 
   @Prop({ type: [String] })
   accessorials: string[];
-
-  @Prop()
-  do_not_stack: boolean;
 
   @Prop()
   max_temp: number;

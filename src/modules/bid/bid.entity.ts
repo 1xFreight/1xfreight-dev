@@ -1,7 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
-import { Quote } from '../quote/entities/quote.entity';
-import { User } from '../user/entities/user.entity';
 
 export type BidDocument = Bid & Document;
 
@@ -15,19 +13,19 @@ export class Bid {
   valid_until: string;
 
   @Prop({ required: true })
-  total_miles: string;
+  amount: number;
 
   @Prop({ required: true })
-  price: number;
+  transit_time: number;
+
+  @Prop()
+  notes: string;
 
   @Prop({ required: true })
-  transitTime: number;
+  quote_id: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'Quote', required: true })
-  quote_id: Quote;
-
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  user_id: User;
+  @Prop({ required: true })
+  user_id: string;
 }
 
 export const BidSchema = SchemaFactory.createForClass(Bid);

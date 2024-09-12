@@ -7,6 +7,8 @@ import * as process from 'process';
 import * as parser from 'xml2json';
 import { User, UserDocument } from '../user/entities/user.entity';
 import { UserRolesEnum } from '../common/enums/roles.enum';
+import { SpotGroup, SpotGroupDocument } from './entitites/spot-group.entity';
+import { PaginationWithFilters } from '../common/interfaces/pagination.interface';
 
 @Injectable()
 export class CarrierService {
@@ -15,11 +17,92 @@ export class CarrierService {
     private readonly _carrierModel: Model<CarrierDocument>,
     @InjectModel(User.name)
     private readonly _userModel: Model<UserDocument>,
+    @InjectModel(SpotGroup.name)
+    private readonly _spotGroupModel: Model<SpotGroupDocument>,
     private readonly httpService: HttpService,
   ) {}
 
-  async getUserCarriers(user_id: string) {
-    return this._carrierModel.find({ user_id }).exec();
+  async getUserCarriers(user_id: string, params: PaginationWithFilters) {
+    const _aggregate: any = [
+      {
+        $match: {
+          user_id: user_id,
+        },
+      },
+      {
+        $lookup: {
+          from: 'spotgroups',
+          let: { carrierId: { $toString: '$_id' } },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $in: ['$$carrierId', '$carriers'] },
+              },
+            },
+            {
+              $project: { name: 1 },
+            },
+          ],
+          as: 'matchingSpotGroups',
+        },
+      },
+      {
+        $addFields: {
+          tags: {
+            $reduce: {
+              input: '$matchingSpotGroups',
+              initialValue: [],
+              in: { $setUnion: ['$$value', ['$$this.name']] },
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          matchingSpotGroups: 0,
+        },
+      },
+    ];
+
+    if (params?.searchText) {
+      _aggregate.push({
+        $match: {
+          $or: [
+            {
+              name: {
+                $regex: params?.searchText,
+                $options: 'i',
+              },
+            },
+            {
+              email: {
+                $regex: params?.searchText,
+                $options: 'i',
+              },
+            },
+          ],
+        },
+      });
+    }
+
+    const totalCarriers =
+      (await this._carrierModel.aggregate(_aggregate).count('total').exec())[0]
+        ?.total || 0;
+
+    if (params?.skip && params?.skip != 0) {
+      _aggregate.push({ $skip: Number(params.skip) });
+    }
+
+    if (params?.limit) {
+      _aggregate.push({ $limit: Number(params.limit) });
+    }
+
+    const carriers = await this._carrierModel.aggregate(_aggregate).exec();
+
+    return {
+      totalCarriers,
+      carriers,
+    };
   }
 
   async updateCarrierInfo(user_id: string, carrier: Partial<Carrier>) {
@@ -212,5 +295,59 @@ export class CarrierService {
           console.log(insurance);
         }
       });
+  }
+
+  async createSpotGroup(
+    user_id: string,
+    name: string,
+    carriers: string[],
+    status: string,
+  ) {
+    return (
+      await this._spotGroupModel.create({ user_id, name, carriers, status })
+    ).save;
+  }
+
+  async getUserSpotGroup(user_id: string, params: PaginationWithFilters) {
+    const _aggregate: any = [
+      {
+        $match: { user_id },
+      },
+    ];
+
+    if (params?.searchText) {
+      _aggregate.push({
+        $match: {
+          $or: [
+            {
+              name: {
+                $regex: params?.searchText,
+                $options: 'i',
+              },
+            },
+          ],
+        },
+      });
+    }
+
+    const totalSpot =
+      (
+        await this._spotGroupModel.aggregate(_aggregate).count('total').exec()
+      )[0]?.total || 0;
+
+    if (params?.skip && params?.skip != 0) {
+      _aggregate.push({ $skip: Number(params.skip) });
+    }
+
+    if (params?.limit) {
+      _aggregate.push({ $limit: Number(params.limit) });
+    }
+
+    const spots = await this._spotGroupModel.aggregate(_aggregate).exec();
+
+    return {
+      totalSpot,
+      spots,
+    };
   }
 }

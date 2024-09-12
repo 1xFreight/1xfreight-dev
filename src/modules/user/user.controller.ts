@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Post,
+  Query,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
@@ -17,6 +18,8 @@ import { UserRolesEnum } from '../common/enums/roles.enum';
 import { User as UserEntity } from './entities/user.entity';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { FileSystemService } from '../files/file.service';
+import { PaginationWithFilters } from '../common/interfaces/pagination.interface';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 @Controller('users')
 export class UserController {
@@ -24,11 +27,6 @@ export class UserController {
     private readonly _userService: UserService,
     private readonly _fileSystemService: FileSystemService,
   ) {}
-
-  @Get('/create-test')
-  async createTest() {
-    // return this._userService.create();
-  }
 
   @Auth()
   @Get('/me')
@@ -39,12 +37,18 @@ export class UserController {
 
   @Auth()
   @Post('/update')
+  @Roles([
+    UserRolesEnum.SHIPPER,
+    UserRolesEnum.SHIPPER_MEMBER,
+    UserRolesEnum.SHIPPER_DEMO,
+  ])
   async updateMe(@User() user, @Body() newData: UserUpdateDto) {
     return this._userService.updateUserInfo(newData, user._id);
   }
 
   @Auth()
   @Post('/create-member')
+  @Roles([UserRolesEnum.SHIPPER, UserRolesEnum.SHIPPER_DEMO])
   async createMember(@User() user, @Body() newUserData: UserMemberDto) {
     const newUser = {
       ...newUserData,
@@ -57,17 +61,22 @@ export class UserController {
 
   @Auth()
   @Get('/members')
-  async getMembers(@User() user): Promise<UserDto[]> {
-    const members = await this._userService.findMembers(user._id);
-    return members.map((member) =>
-      plainToInstance(UserDto, member, {
-        excludeExtraneousValues: true,
-      }),
-    );
+  @Roles([UserRolesEnum.SHIPPER, UserRolesEnum.SHIPPER_DEMO])
+  async getMembers(@User() user, @Query() params: PaginationWithFilters) {
+    const members = await this._userService.findMembers(user._id, params);
+    return {
+      members: members.members.map((member) =>
+        plainToInstance(UserDto, member, {
+          excludeExtraneousValues: true,
+        }),
+      ),
+      totalMembers: members.totalMembers,
+    };
   }
 
   @Auth()
   @Post('/update-member')
+  @Roles([UserRolesEnum.SHIPPER, UserRolesEnum.SHIPPER_DEMO])
   async updateMemberInfo(@User() user, @Body() body: Partial<UserEntity>) {
     return !!(await this._userService.updateMemberInfo(body, user._id));
   }
@@ -75,6 +84,11 @@ export class UserController {
   @Auth()
   @Post('upload-logo')
   @UseInterceptors(FileInterceptor('file'))
+  @Roles([
+    UserRolesEnum.SHIPPER,
+    UserRolesEnum.SHIPPER_DEMO,
+    UserRolesEnum.SHIPPER_MEMBER,
+  ])
   async uploadFile(@UploadedFile() file: Express.Multer.File, @User() user) {
     if (user.logo) {
       try {

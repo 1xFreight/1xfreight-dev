@@ -45,8 +45,11 @@ export class Quote {
   @Prop({ required: true })
   deadline_time: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'Bid' })
-  bid_id: Bid;
+  @Prop()
+  bid_id: string;
+
+  @Prop()
+  carrier_id: string;
 
   @Prop({ required: false, enum: QuotePreferencesEnum })
   preference: string;
@@ -62,6 +65,18 @@ export class Quote {
 
   @Prop({ type: [String] })
   equipments: string[];
+
+  @Prop({ type: [String] })
+  subscribers: string[];
+
+  @Prop({ type: [String] })
+  declined: string[];
+
+  @Prop({ required: true })
+  total_miles: string;
+
+  @Prop({ required: true, default: 1 })
+  load_number: number;
 }
 
 export const QuoteSchema = SchemaFactory.createForClass(Quote);

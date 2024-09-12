@@ -4,7 +4,6 @@ import { Connection, Model } from 'mongoose';
 import { ImageDocument, Image } from './image.entity';
 import { Readable } from 'stream';
 import { GridFSBucket, ObjectId } from 'mongodb';
-import * as mongoose from 'mongoose';
 
 @Injectable()
 export class FileSystemService {
@@ -39,18 +38,39 @@ export class FileSystemService {
     });
   }
 
-  async getImage(id: string): Promise<Buffer> {
+  async getImage(
+    id: string,
+  ): Promise<{ data: Buffer; filename: string; contentType: string }> {
     const objectId = new ObjectId(id);
 
-    return new Promise((resolve, reject) => {
-      const chunks = [];
+    try {
+      // Find file metadata using the promise-based approach
+      const files = await this.bucket.find({ _id: objectId }).toArray();
 
-      this.bucket
-        .openDownloadStream(objectId)
-        .on('data', (chunk) => chunks.push(chunk))
-        .on('error', (error) => reject(error))
-        .on('end', () => resolve(Buffer.concat(chunks)));
-    });
+      if (!files || files.length === 0) {
+        throw new Error('File not found');
+      }
+
+      const file = files[0];
+      const filename = file.filename;
+      const contentType = file.contentType || 'application/octet-stream';
+
+      const chunks: Buffer[] = [];
+
+      // Stream the file data
+      return new Promise((resolve, reject) => {
+        this.bucket
+          .openDownloadStream(objectId)
+          .on('data', (chunk) => chunks.push(chunk))
+          .on('error', (error) => reject(error))
+          .on('end', () => {
+            const data = Buffer.concat(chunks);
+            resolve({ data, filename, contentType });
+          });
+      });
+    } catch (error) {
+      throw new Error(`Failed to retrieve file: ${error.message}`);
+    }
   }
 
   async deleteImage(id: string): Promise<void> {
@@ -61,5 +81,9 @@ export class FileSystemService {
     } catch (error) {
       throw new Error(`Failed to delete image: ${error.message}`);
     }
+  }
+
+  async getFileData(id: string) {
+    return this.imageModel.findOne({ _id: new ObjectId(id) });
   }
 }

@@ -71,11 +71,8 @@ export class Carrier {
   @Prop()
   dot: string;
 
-  @Prop({ type: [String] })
-  tags: string[];
-
-  @Prop({ type: Types.ObjectId, ref: 'User' })
-  user_id: User;
+  @Prop()
+  user_id: string;
 
   @Prop({ enum: UserStatusEnum, default: UserStatusEnum.ACTIVE })
   status: string;

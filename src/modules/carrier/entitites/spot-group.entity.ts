@@ -1,11 +1,11 @@
-import { Prop, Schema } from '@nestjs/mongoose';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { User } from '../../user/entities/user.entity';
 
 export type SpotGroupDocument = SpotGroup & Document;
 
 @Schema({
-  timestamps: false,
+  timestamps: true,
 })
 export class SpotGroup {
   _id: Types.ObjectId;
@@ -14,5 +14,13 @@ export class SpotGroup {
   user_id: User;
 
   @Prop({ required: true })
-  tag: string;
+  name: string;
+
+  @Prop({ default: 'active' })
+  status: string;
+
+  @Prop({ type: [String], required: true })
+  carriers: string[];
 }
+
+export const SpotGroupSchema = SchemaFactory.createForClass(SpotGroup);

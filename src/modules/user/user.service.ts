@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { User, UserDocument } from './entities/user.entity';
 import { Model } from 'mongoose';
+import { PaginationWithFilters } from '../common/interfaces/pagination.interface';
 
 @Injectable()
 export class UserService {
@@ -32,7 +33,63 @@ export class UserService {
       .exec();
   }
 
-  async findMembers(user_id: string) {
-    return this.userModel.find({ referral_id: user_id }).exec();
+  async findMembers(user_id: string, params?: PaginationWithFilters) {
+    const _aggregate: any = [
+      {
+        $match: { referral_id: user_id },
+      },
+    ];
+
+    if (params?.searchText) {
+      _aggregate.push({
+        $match: {
+          $or: [
+            {
+              name: {
+                $regex: params?.searchText,
+                $options: 'i',
+              },
+            },
+            {
+              position: {
+                $regex: params?.searchText,
+                $options: 'i',
+              },
+            },
+            {
+              email: {
+                $regex: params?.searchText,
+                $options: 'i',
+              },
+            },
+            {
+              phone: {
+                $regex: params?.searchText,
+                $options: 'i',
+              },
+            },
+          ],
+        },
+      });
+    }
+
+    const totalMembers =
+      (await this.userModel.aggregate(_aggregate).count('total').exec())[0]
+        ?.total || 0;
+
+    if (params?.skip && params?.skip != 0) {
+      _aggregate.push({ $skip: Number(params.skip) });
+    }
+
+    if (params?.limit) {
+      _aggregate.push({ $limit: Number(params.limit) });
+    }
+
+    const members = await this.userModel.aggregate(_aggregate).exec();
+
+    return {
+      totalMembers,
+      members,
+    };
   }
 }

@@ -87,4 +87,8 @@ export class AuthService {
       user_id,
     );
   }
+
+  async verifyToken(token: string) {
+    return this._jwtService.verify(token, { secret: process.env.JWT_SECRET });
+  }
 }

@@ -7,7 +7,7 @@ import { User } from '../user/entities/user.entity';
 export type AddressDocument = Address & Document;
 
 @Schema({
-  timestamps: false,
+  timestamps: true,
 })
 export class Address {
   _id: Types.ObjectId;
@@ -44,6 +44,9 @@ export class Address {
 
   @Prop({ enum: AddressTypeEnum })
   address_type: string;
+
+  @Prop({ default: 1 })
+  order: number;
 }
 
 export const AddressSchema = SchemaFactory.createForClass(Address);

@@ -14,6 +14,10 @@ import { Shipment, ShipmentSchema } from '../quote/entities/shipment.entity';
 import { Quote, QuoteSchema } from '../quote/entities/quote.entity';
 import { Template, TemplateSchema } from '../quote/entities/template.entity';
 import { Carrier, CarrierSchema } from '../carrier/entitites/carrier.entity';
+import {
+  SpotGroup,
+  SpotGroupSchema,
+} from '../carrier/entitites/spot-group.entity';
 
 export default [
   {
@@ -55,5 +59,9 @@ export default [
   {
     name: Carrier.name,
     schema: CarrierSchema,
+  },
+  {
+    name: SpotGroup.name,
+    schema: SpotGroupSchema,
   },
 ];

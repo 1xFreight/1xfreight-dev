@@ -11,6 +11,12 @@ import { AddressModule } from './modules/address/address.module';
 import { CarrierModule } from './modules/carrier/carrier.module';
 import { FileSystemModule } from './modules/files/file.module';
 import { MulterModule } from '@nestjs/platform-express';
+import { APP_GUARD } from '@nestjs/core';
+import { RolesGuard } from './modules/auth/guards/roles.guard';
+import { SocketModule } from './modules/socket/socket.module';
+import { ChatModule } from './modules/chat/chat.module';
+import { BidModule } from './modules/bid/bid.module';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 @Module({
   imports: [
@@ -27,8 +33,18 @@ import { MulterModule } from '@nestjs/platform-express';
     MulterModule.register({
       dest: './uploads',
     }),
+    SocketModule,
+    ChatModule,
+    BidModule,
+    EventEmitterModule.forRoot(),
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
+    },
+  ],
 })
 export class AppModule {}
