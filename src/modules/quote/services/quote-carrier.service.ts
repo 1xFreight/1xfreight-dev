@@ -1,0 +1,494 @@
+import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Quote, QuoteDocument } from '../entities/quote.entity';
+import { Model, Types } from 'mongoose';
+import { Shipment, ShipmentDocument } from '../entities/shipment.entity';
+import { Template, TemplateDocument } from '../entities/template.entity';
+import { AddressService } from '../../address/address.service';
+import { BidService } from '../../bid/bid.service';
+import { PaginationWithFilters } from '../../common/interfaces/pagination.interface';
+import { QuoteStatusEnum } from '../../common/enums/quote-status.enum';
+import { ObjectId } from 'mongodb';
+
+@Injectable()
+export class QuoteCarrierService {
+  constructor(
+    @InjectModel(Quote.name) private readonly _quoteModel: Model<QuoteDocument>,
+    @InjectModel(Shipment.name)
+    private readonly _shipmentModel: Model<ShipmentDocument>,
+    @InjectModel(Template.name)
+    private readonly _templateModel: Model<TemplateDocument>,
+    private readonly _addressService: AddressService,
+    private readonly _bidService: BidService,
+  ) {}
+
+  async declineQuote(carrier_email: string, quote_id: string) {
+    try {
+      await this._quoteModel.updateOne(
+        { _id: quote_id },
+        {
+          $pull: { subscribers: carrier_email },
+          $push: { declined: carrier_email },
+        },
+      );
+
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  async getCarrierActiveLoads(user_id: string, params: PaginationWithFilters) {
+    const _aggregate: any[] = [
+      { $sort: { updatedAt: -1 } },
+      {
+        $match: {
+          carrier_id: user_id,
+        },
+      },
+      {
+        $lookup: {
+          from: 'addresses',
+          localField: '_id',
+          foreignField: 'quote_id',
+          as: 'addresses',
+          pipeline: [
+            {
+              $sort: { order: 1 },
+            },
+            {
+              $group: {
+                _id: '$address_type',
+                addresses: { $push: '$$ROOT' },
+              },
+            },
+
+            {
+              $unwind: '$addresses',
+            },
+            {
+              $replaceRoot: { newRoot: '$addresses' },
+            },
+          ],
+        },
+      },
+      {
+        $lookup: {
+          from: 'shipments',
+          localField: '_id',
+          foreignField: 'quote_id',
+          as: 'details',
+        },
+      },
+      {
+        $addFields: {
+          user_id_obj: { $toObjectId: '$user_id' },
+          bid_id_obj: { $toObjectId: '$bid_id' },
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'user_id_obj',
+          foreignField: '_id',
+          as: 'user',
+          pipeline: [
+            {
+              $project: {
+                name: 1,
+                logo: 1,
+              },
+            },
+          ],
+        },
+      },
+      {
+        $lookup: {
+          from: 'bids',
+          localField: 'bid_id_obj',
+          foreignField: '_id',
+          as: 'carrier_bid',
+        },
+      },
+      {
+        $addFields: {
+          carrier_bid: { $arrayElemAt: ['$carrier_bid', 0] },
+        },
+      },
+      {
+        $project: {
+          user_id_obj: 0,
+          bid_id_obj: 0,
+        },
+      },
+    ];
+
+    if (params.limit == 1) {
+      _aggregate.push({
+        $match: {
+          status: {
+            $nin: [QuoteStatusEnum.CANCELED],
+          },
+        },
+      });
+    } else {
+      _aggregate.push({
+        $match: {
+          status: {
+            $nin: [QuoteStatusEnum.CANCELED, QuoteStatusEnum.DELIVERED],
+          },
+        },
+      });
+    }
+
+    if (params?.id) {
+      const objId = new ObjectId(params.id);
+
+      _aggregate.push({
+        $match: {
+          _id: objId,
+        },
+      });
+    }
+
+    if (params?.searchText) {
+      _aggregate.push({
+        $match: {
+          $or: [
+            {
+              'addresses.address': {
+                $regex: params?.searchText,
+                $options: 'i',
+              },
+            },
+            { references: { $regex: params?.searchText, $options: 'i' } },
+            {
+              $expr: {
+                $regexMatch: {
+                  input: { $toString: '$_id' },
+                  regex: `${params?.searchText}$`,
+                  options: 'i',
+                },
+              },
+            },
+          ],
+        },
+      });
+    }
+
+    const totalQuotes =
+      (await this._quoteModel.aggregate(_aggregate).count('total').exec())[0]
+        ?.total || 0;
+
+    if (params?.skip && params?.skip != 0) {
+      _aggregate.push({ $skip: Number(params.skip) });
+    }
+
+    if (params?.limit) {
+      _aggregate.push({ $limit: Number(params.limit) });
+    }
+
+    const quotes = await this._quoteModel.aggregate(_aggregate).exec();
+
+    return {
+      totalQuotes,
+      quotes,
+    };
+  }
+
+  async getOneQuoteCarrier(quote_id: string, user_email: string) {
+    const _aggregate: any[] = [
+      {
+        $match: {
+          _id: new Types.ObjectId(quote_id),
+          $expr: {
+            $in: [user_email, { $ifNull: ['$subscribers', []] }],
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: 'addresses',
+          localField: '_id',
+          foreignField: 'quote_id',
+          as: 'addresses',
+          pipeline: [
+            {
+              $sort: { order: 1 },
+            },
+            {
+              $group: {
+                _id: '$address_type',
+                addresses: { $push: '$$ROOT' },
+              },
+            },
+
+            {
+              $unwind: '$addresses',
+            },
+            {
+              $replaceRoot: { newRoot: '$addresses' },
+            },
+          ],
+        },
+      },
+      {
+        $lookup: {
+          from: 'shipments',
+          localField: '_id',
+          foreignField: 'quote_id',
+          as: 'details',
+        },
+      },
+      {
+        $addFields: {
+          user_id_obj: { $toObjectId: '$user_id' },
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'user_id_obj',
+          foreignField: '_id',
+          as: 'user',
+          pipeline: [
+            {
+              $project: {
+                name: 1,
+                logo: 1,
+              },
+            },
+          ],
+        },
+      },
+      {
+        $limit: 1,
+      },
+      {
+        $project: {
+          user_id_obj: 0,
+        },
+      },
+    ];
+
+    return (await this._quoteModel.aggregate(_aggregate).exec())[0];
+  }
+
+  async changeQuoteStatusByCarrier(user_id: string, quote_id: string) {
+    const quoteQ = await this._quoteModel
+      .aggregate([
+        {
+          $match: {
+            carrier_id: user_id,
+            _id: new ObjectId(quote_id),
+          },
+        },
+        {
+          $lookup: {
+            from: 'addresses',
+            localField: '_id',
+            foreignField: 'quote_id',
+            as: 'addresses',
+          },
+        },
+        {
+          $limit: 1,
+        },
+      ])
+      .exec();
+
+    if (!quoteQ) return;
+
+    const quote = quoteQ[0];
+
+    if (quote.status == QuoteStatusEnum.AT_PICKUP) {
+      const pickup = quote.addresses.filter(
+        ({ address_type }) => address_type == 'pickup',
+      );
+
+      let fulfilledAddresses = 0;
+
+      pickup.map((address) => {
+        address.arrival_time ? (fulfilledAddresses += 1) : '';
+      });
+
+      if (fulfilledAddresses != pickup.length) return;
+    }
+
+    if (quote.status == QuoteStatusEnum.AT_DESTINATION) {
+      const drop = quote.addresses.filter(
+        ({ address_type }) => address_type == 'drop',
+      );
+
+      let fulfilledAddresses = 0;
+
+      drop.map((address) => {
+        address.arrival_time ? (fulfilledAddresses += 1) : '';
+      });
+      if (fulfilledAddresses != drop.length) return;
+    }
+
+    if (quote.status == QuoteStatusEnum.DELIVERED) return;
+
+    const currentStatusIndex = [...Object.values(QuoteStatusEnum)].indexOf(
+      quote.status as QuoteStatusEnum,
+    );
+    const nextStatusKey = [...Object.keys(QuoteStatusEnum)][
+      currentStatusIndex + 1
+    ];
+    const nextStatus = QuoteStatusEnum[nextStatusKey];
+
+    return this._quoteModel
+      .updateOne(
+        {
+          carrier_id: user_id,
+          _id: new ObjectId(quote_id),
+        },
+        { status: nextStatus },
+      )
+      .exec();
+  }
+
+  async getCarrierHistory(user_id: string, params: PaginationWithFilters) {
+    const _aggregate: any[] = [
+      { $sort: { createdAt: -1 } },
+      {
+        $match: {
+          carrier_id: user_id,
+          status: {
+            $in: [QuoteStatusEnum.CANCELED, QuoteStatusEnum.DELIVERED],
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: 'addresses',
+          localField: '_id',
+          foreignField: 'quote_id',
+          as: 'addresses',
+          pipeline: [
+            {
+              $sort: { order: 1 },
+            },
+            {
+              $group: {
+                _id: '$address_type',
+                addresses: { $push: '$$ROOT' },
+              },
+            },
+
+            {
+              $unwind: '$addresses',
+            },
+            {
+              $replaceRoot: { newRoot: '$addresses' },
+            },
+          ],
+        },
+      },
+      {
+        $lookup: {
+          from: 'shipments',
+          localField: '_id',
+          foreignField: 'quote_id',
+          as: 'details',
+        },
+      },
+      {
+        $addFields: {
+          user_id_obj: { $toObjectId: '$user_id' },
+          bid_id_obj: { $toObjectId: '$bid_id' },
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'user_id_obj',
+          foreignField: '_id',
+          as: 'user',
+          pipeline: [
+            {
+              $project: {
+                name: 1,
+                logo: 1,
+              },
+            },
+          ],
+        },
+      },
+      {
+        $lookup: {
+          from: 'bids',
+          localField: 'bid_id_obj',
+          foreignField: '_id',
+          as: 'carrier_bid',
+        },
+      },
+      {
+        $addFields: {
+          carrier_bid: { $arrayElemAt: ['$carrier_bid', 0] },
+        },
+      },
+      {
+        $project: {
+          user_id_obj: 0,
+          bid_id_obj: 0,
+        },
+      },
+    ];
+
+    if (params?.id) {
+      const objId = new ObjectId(params.id);
+
+      _aggregate.push({
+        $match: {
+          _id: objId,
+        },
+      });
+    }
+
+    if (params?.searchText) {
+      _aggregate.push({
+        $match: {
+          $or: [
+            {
+              'addresses.address': {
+                $regex: params?.searchText,
+                $options: 'i',
+              },
+            },
+            { references: { $regex: params?.searchText, $options: 'i' } },
+            {
+              $expr: {
+                $regexMatch: {
+                  input: { $toString: '$_id' },
+                  regex: `${params?.searchText}$`,
+                  options: 'i',
+                },
+              },
+            },
+          ],
+        },
+      });
+    }
+
+    const totalQuotes =
+      (await this._quoteModel.aggregate(_aggregate).count('total').exec())[0]
+        ?.total || 0;
+
+    if (params?.skip && params?.skip != 0) {
+      _aggregate.push({ $skip: Number(params.skip) });
+    }
+
+    if (params?.limit) {
+      _aggregate.push({ $limit: Number(params.limit) });
+    }
+
+    const quotes = await this._quoteModel.aggregate(_aggregate).exec();
+
+    return {
+      totalQuotes,
+      quotes,
+    };
+  }
+}

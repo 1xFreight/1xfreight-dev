@@ -11,7 +11,7 @@ import { Auth } from '../auth/decorators/auth.decorator';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { User } from '../user/decorators/user.decorator';
 import { FileSystemService } from '../files/file.service';
-import { QuoteService } from '../quote/quote.service';
+import { QuoteService } from '../quote/services/quote.service';
 import { SocketService } from '../socket/services/socket.service';
 import { WebSocketGateway } from '@nestjs/websockets';
 import { EventEmitter2 } from '@nestjs/event-emitter';

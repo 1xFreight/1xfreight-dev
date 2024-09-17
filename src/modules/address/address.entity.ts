@@ -47,6 +47,15 @@ export class Address {
 
   @Prop({ default: 1 })
   order: number;
+
+  @Prop()
+  arrival_time: string;
+
+  @Prop()
+  arrival_date: string;
+
+  @Prop()
+  arrival_status: string;
 }
 
 export const AddressSchema = SchemaFactory.createForClass(Address);

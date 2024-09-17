@@ -4,6 +4,9 @@ import { Address, AddressDocument } from './address.entity';
 import { Model, Types } from 'mongoose';
 import { PaginationWithFilters } from '../common/interfaces/pagination.interface';
 import { Client } from '@googlemaps/google-maps-services-js';
+import { isDateValid } from '../common/utils/date.util';
+import { AddressArrivalStatusEnum } from '../common/enums/address-type.enum';
+import { ObjectId } from 'mongodb';
 
 @Injectable()
 export class AddressService {
@@ -126,5 +129,66 @@ export class AddressService {
     }
 
     return Math.floor((distance / 1000) * kmToMilesCoefficient);
+  }
+
+  async addArrivalTimeToAddress(
+    arrival_date: string,
+    arrival_time: string,
+    address_id: string,
+  ) {
+    let arrival_status = AddressArrivalStatusEnum.ON_TIME;
+    const address = await this._addressModel
+      .findOne({ _id: new ObjectId(address_id) })
+      .exec();
+
+    if (address.arrival_time) {
+      return;
+    }
+
+    if (address.date) {
+      const isDateOnTime = isDateValid(arrival_date, address.date);
+      if (!isDateOnTime) {
+        arrival_status = AddressArrivalStatusEnum.LATE;
+      }
+    }
+
+    if (
+      address.time_end &&
+      arrival_status === AddressArrivalStatusEnum.ON_TIME
+    ) {
+      const addressDayInterval = address.time_end.split(' ')[1];
+      const arrivalDayInterval = arrival_status.split(' ')[1];
+
+      if (addressDayInterval !== arrivalDayInterval) {
+        arrival_status = AddressArrivalStatusEnum.LATE;
+      }
+
+      const addressHours = Number(address.time_end.split(':')[0]);
+      const arrivalHours = Number(arrival_time.split(':')[0]);
+
+      if (arrivalHours > addressHours) {
+        arrival_status = AddressArrivalStatusEnum.LATE;
+      }
+
+      const addressMinutes = Number(
+        address.time_end.split(' ')[0].split(':')[1],
+      );
+      const arrivalMinutes = Number(arrival_time.split(' ')[0].split(':')[1]);
+
+      if (arrivalMinutes > addressMinutes) {
+        arrival_status = AddressArrivalStatusEnum.LATE;
+      }
+    }
+
+    return await this._addressModel
+      .updateOne(
+        { _id: new ObjectId(address_id) },
+        {
+          arrival_date,
+          arrival_time,
+          arrival_status,
+        },
+      )
+      .exec();
   }
 }

@@ -1,5 +1,5 @@
 export const cookieConfig = {
   httpOnly: true,
-  secure: true,
-  sameSite: 'none',
+  // secure: true,
+  // sameSite: 'none',
 };

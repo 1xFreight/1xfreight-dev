@@ -1,17 +1,19 @@
-import { Body, Controller, Get, Query, Post, Param, Res } from '@nestjs/common';
-import { Auth } from '../auth/decorators/auth.decorator';
-import { User } from '../user/decorators/user.decorator';
-import { QuoteService } from './quote.service';
-import { PaginationWithFilters } from '../common/interfaces/pagination.interface';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { UserRolesEnum } from '../common/enums/roles.enum';
-import { BidService } from '../bid/bid.service';
+import { Body, Controller, Get, Query, Post, Res } from '@nestjs/common';
+import { Auth } from '../../auth/decorators/auth.decorator';
+import { User } from '../../user/decorators/user.decorator';
+import { QuoteService } from '../services/quote.service';
+import { PaginationWithFilters } from '../../common/interfaces/pagination.interface';
+import { Roles } from '../../auth/decorators/roles.decorator';
+import { UserRolesEnum } from '../../common/enums/roles.enum';
+import { BidService } from '../../bid/bid.service';
+import { AddressService } from '../../address/address.service';
 
 @Controller('quote')
 export class QuoteController {
   constructor(
     private readonly _quoteService: QuoteService,
     private readonly _bidService: BidService,
+    private readonly _addressService: AddressService,
   ) {}
 
   @Auth()
@@ -37,27 +39,12 @@ export class QuoteController {
       user._id,
       params,
     );
-
-    // Set headers and send the file
     res.setHeader('Content-Disposition', 'attachment; filename=export.xlsx');
     res.setHeader(
       'Content-Type',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     );
     res.send(excelBuffer);
-  }
-
-  @Auth()
-  @Get('/carrier')
-  @Roles([UserRolesEnum.CARRIER])
-  async carrierQuotes(@User() user, @Query() params: PaginationWithFilters) {
-    return this._quoteService.getUserQuotes(user._id, params, user);
-  }
-
-  @Auth()
-  @Get('/id/:quote_id')
-  async getOneQuote(@User() user, @Param('quote_id') quote_id) {
-    return this._quoteService.getOneQuoteCarrier(quote_id, user.email);
   }
 
   @Auth()
@@ -98,17 +85,12 @@ export class QuoteController {
   }
 
   @Auth()
-  @Post('/decline/:quote_id')
-  @Roles([UserRolesEnum.CARRIER])
-  async declineQuoteByCarrier(@User() user, @Param('quote_id') quote_id) {
-    try {
-      this._bidService.declineBid(user._id, quote_id);
-    } catch {}
-    return this._quoteService.declineQuote(user.email, quote_id);
-  }
-
-  @Auth()
   @Post('/accept')
+  @Roles([
+    UserRolesEnum.SHIPPER,
+    UserRolesEnum.SHIPPER_DEMO,
+    UserRolesEnum.SHIPPER_MEMBER,
+  ])
   async acceptQuote(
     @User() user,
     @Body() body: { quote_id: string; bid_id: string },

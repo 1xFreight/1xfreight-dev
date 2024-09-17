@@ -10,7 +10,7 @@ import { Server } from 'socket.io';
 import { ChatService } from './chat.service';
 import { SocketUser } from '../socket/decorators/socket-user.decorator';
 import { SocketAuth } from '../auth/decorators/socket-auth.decorator';
-import { QuoteService } from '../quote/quote.service';
+import { QuoteService } from '../quote/services/quote.service';
 import { OnEvent } from '@nestjs/event-emitter';
 import { Chat } from './chat.entity';
 

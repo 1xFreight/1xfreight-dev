@@ -1,17 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Quote, QuoteDocument } from './entities/quote.entity';
+import { Quote, QuoteDocument } from '../entities/quote.entity';
 import { Model, Types } from 'mongoose';
-import { Shipment, ShipmentDocument } from './entities/shipment.entity';
-import { QuoteEnum } from '../common/enums/quote.enum';
-import { AddressService } from '../address/address.service';
-import { QuoteStatusEnum } from '../common/enums/quote-status.enum';
-import { User } from '../user/entities/user.entity';
-import { Template, TemplateDocument } from './entities/template.entity';
-import { PaginationWithFilters } from '../common/interfaces/pagination.interface';
-import { AddressTypeEnum } from '../common/enums/address-type.enum';
-import { UserRolesEnum } from '../common/enums/roles.enum';
-import { BidService } from '../bid/bid.service';
+import { Shipment, ShipmentDocument } from '../entities/shipment.entity';
+import { QuoteEnum } from '../../common/enums/quote.enum';
+import { AddressService } from '../../address/address.service';
+import { QuoteStatusEnum } from '../../common/enums/quote-status.enum';
+import { User } from '../../user/entities/user.entity';
+import { Template, TemplateDocument } from '../entities/template.entity';
+import { PaginationWithFilters } from '../../common/interfaces/pagination.interface';
+import { AddressTypeEnum } from '../../common/enums/address-type.enum';
+import { UserRolesEnum } from '../../common/enums/roles.enum';
+import { BidService } from '../../bid/bid.service';
 import { ObjectId } from 'mongodb';
 import * as XLSX from 'xlsx';
 
@@ -26,84 +26,6 @@ export class QuoteService {
     private readonly _addressService: AddressService,
     private readonly _bidService: BidService,
   ) {}
-
-  async getOneQuoteCarrier(quote_id: string, user_email: string) {
-    const _aggregate: any[] = [
-      {
-        $match: {
-          _id: new Types.ObjectId(quote_id),
-          $expr: {
-            $in: [user_email, { $ifNull: ['$subscribers', []] }],
-          },
-        },
-      },
-      {
-        $lookup: {
-          from: 'addresses',
-          localField: '_id',
-          foreignField: 'quote_id',
-          as: 'addresses',
-          pipeline: [
-            {
-              $sort: { order: 1 },
-            },
-            {
-              $group: {
-                _id: '$address_type',
-                addresses: { $push: '$$ROOT' },
-              },
-            },
-
-            {
-              $unwind: '$addresses',
-            },
-            {
-              $replaceRoot: { newRoot: '$addresses' },
-            },
-          ],
-        },
-      },
-      {
-        $lookup: {
-          from: 'shipments',
-          localField: '_id',
-          foreignField: 'quote_id',
-          as: 'details',
-        },
-      },
-      {
-        $addFields: {
-          user_id_obj: { $toObjectId: '$user_id' },
-        },
-      },
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'user_id_obj',
-          foreignField: '_id',
-          as: 'user',
-          pipeline: [
-            {
-              $project: {
-                name: 1,
-                logo: 1,
-              },
-            },
-          ],
-        },
-      },
-      {
-        $limit: 1,
-      },
-      {
-        $project: {
-          user_id_obj: 0,
-        },
-      },
-    ];
-
-    return (await this._quoteModel.aggregate(_aggregate).exec())[0];
-  }
 
   async getUserQuotes(
     user_id: string,
@@ -162,10 +84,7 @@ export class QuoteService {
                 $in: [isCarrier.email, { $ifNull: ['$subscribers', []] }],
               },
               {
-                $in: [
-                  '$status',
-                  [QuoteStatusEnum.REQUESTED, QuoteStatusEnum.CANCELED],
-                ],
+                $in: ['$status', [QuoteStatusEnum.REQUESTED]],
               },
             ],
           },
@@ -428,7 +347,7 @@ export class QuoteService {
     _aggregate = [
       ..._aggregate,
       matchStage,
-      { $sort: { createdAt: -1 } },
+      { $sort: { updatedAt: -1 } },
       {
         $project: {
           subscribers: 0,
@@ -702,22 +621,6 @@ export class QuoteService {
       user_id: user_id,
       _id: template_id,
     });
-  }
-
-  async declineQuote(carrier_email: string, quote_id: string) {
-    try {
-      await this._quoteModel.updateOne(
-        { _id: quote_id },
-        {
-          $pull: { subscribers: carrier_email },
-          $push: { declined: carrier_email },
-        },
-      );
-
-      return true;
-    } catch (e) {
-      return false;
-    }
   }
 
   async verifyUserAccessToRoom(user: Partial<User>, room: string) {
