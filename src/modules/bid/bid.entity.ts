@@ -13,7 +13,7 @@ export class Bid {
   valid_until: string;
 
   @Prop({ required: true })
-  amount: number;
+  amount: number; // Amount per load
 
   @Prop({ required: true })
   transit_time: number;

@@ -7,10 +7,11 @@ import { QuoteController } from './controllers/quote.controller';
 import { BidModule } from '../bid/bid.module';
 import { QuoteCarrierService } from './services/quote-carrier.service';
 import { QuoteCarrierController } from './controllers/quote-carrier.controller';
+import { QuoteCreateService } from './services/quote-create.service';
 
 @Module({
   imports: [MongooseModule.forFeature(forFeatureDb), AddressModule, BidModule],
-  providers: [QuoteService, QuoteCarrierService],
+  providers: [QuoteService, QuoteCarrierService, QuoteCreateService],
   controllers: [QuoteController, QuoteCarrierController],
   exports: [QuoteService],
 })

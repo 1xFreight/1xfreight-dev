@@ -17,6 +17,7 @@ import { SocketModule } from './modules/socket/socket.module';
 import { ChatModule } from './modules/chat/chat.module';
 import { BidModule } from './modules/bid/bid.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
     ChatModule,
     BidModule,
     EventEmitterModule.forRoot(),
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [

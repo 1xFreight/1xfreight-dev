@@ -1,6 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
-import { User } from '../../user/entities/user.entity';
 import { UserStatusEnum } from '../../common/enums/user-status.enum';
 
 export type CarrierDocument = Carrier & Document;

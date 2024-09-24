@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Quote, QuoteDocument } from '../entities/quote.entity';
 import { Model, Types } from 'mongoose';
@@ -14,6 +14,11 @@ import { UserRolesEnum } from '../../common/enums/roles.enum';
 import { BidService } from '../../bid/bid.service';
 import { ObjectId } from 'mongodb';
 import * as XLSX from 'xlsx';
+import {
+  Carrier,
+  CarrierDocument,
+} from '../../carrier/entitites/carrier.entity';
+import { Bid, BidDocument } from '../../bid/bid.entity';
 
 @Injectable()
 export class QuoteService {
@@ -23,8 +28,11 @@ export class QuoteService {
     private readonly _shipmentModel: Model<ShipmentDocument>,
     @InjectModel(Template.name)
     private readonly _templateModel: Model<TemplateDocument>,
+    @InjectModel(Carrier.name)
+    private readonly _carrierModel: Model<CarrierDocument>,
     private readonly _addressService: AddressService,
     private readonly _bidService: BidService,
+    @InjectModel(Bid.name) private readonly _bidModel: Model<BidDocument>,
   ) {}
 
   async getUserQuotes(
@@ -196,7 +204,7 @@ export class QuoteService {
     _aggregate = [
       ..._aggregate,
       matchStage,
-      { $sort: { createdAt: -1 } },
+      { $sort: { updatedAt: -1 } },
       {
         $project: {
           subscribers: 0,
@@ -227,6 +235,19 @@ export class QuoteService {
               $replaceRoot: { newRoot: '$addresses' },
             },
           ],
+        },
+      },
+      {
+        $addFields: {
+          quote_id_str: { $toString: '$_id' },
+        },
+      },
+      {
+        $lookup: {
+          from: 'items',
+          localField: 'quote_id_str',
+          foreignField: 'quote_id',
+          as: 'items',
         },
       },
       {
@@ -404,11 +425,15 @@ export class QuoteService {
       {
         $addFields: {
           carrier: { $arrayElemAt: ['$carrier', 0] },
+          bid_id_ibj: { $toObjectId: '$bid_id' },
         },
       },
       {
-        $addFields: {
-          bid_id_ibj: { $toObjectId: '$bid_id' },
+        $lookup: {
+          from: 'carriers',
+          localField: 'carrier.email',
+          foreignField: 'email',
+          as: 'local_carrier',
         },
       },
       {
@@ -422,6 +447,7 @@ export class QuoteService {
       {
         $addFields: {
           bid: { $arrayElemAt: ['$bid', 0] },
+          local_carrier: { $arrayElemAt: ['$local_carrier', 0] },
         },
       },
       {
@@ -437,6 +463,7 @@ export class QuoteService {
           'carrier.currency': 0,
           bid_id: 0,
           bid_id_ibj: 0,
+          carrier_user_id_str: 0,
         },
       },
     ];
@@ -512,64 +539,6 @@ export class QuoteService {
     };
   }
 
-  async createQuoteFTL(quote: any, user: User) {
-    const { pickup, drop, shipment_details, review, subscribers, equipments } =
-      quote;
-
-    const onlyAddress = [...pickup, ...drop].map(({ address }) => address);
-    const total_miles =
-      await this._addressService.calcAddressesDistance(onlyAddress);
-
-    const quoteObj = {
-      type: QuoteEnum.FTL,
-      status: QuoteStatusEnum.REQUESTED,
-      user_id: user._id,
-      quote_type: review.quote_type,
-      currency: review.currency,
-      deadline_date: review.deadline_date,
-      deadline_time: review.deadline_time,
-      subscribers,
-      equipments,
-      total_miles,
-      load_number: shipment_details.load_number ?? 1,
-    };
-
-    if (user.referral_id) {
-      quoteObj['referral_id'] = user.referral_id;
-    }
-
-    shipment_details?.references?.length
-      ? (quoteObj['references'] = shipment_details?.references.map(
-          ({ type, number }) => type + '/' + number,
-        ))
-      : '';
-
-    const savedQuote = await (await this._quoteModel.create(quoteObj)).save();
-    const quote_id = savedQuote._id;
-
-    pickup.map((address) => {
-      this._addressService.create({ ...address, quote_id });
-    });
-
-    drop.map((address) => {
-      this._addressService.create({ ...address, quote_id });
-    });
-
-    (
-      await this._shipmentModel.create({ ...shipment_details, quote_id })
-    ).save();
-
-    if (review?.save_template && review?.template_name) {
-      (
-        await this._templateModel.create({
-          quote_id,
-          name: review.template_name,
-          user_id: user._id,
-        })
-      ).save;
-    }
-  }
-
   async getUserTemplates(user_id: string) {
     return this._templateModel
       .aggregate([
@@ -604,12 +573,16 @@ export class QuoteService {
           },
         },
         {
-          $group: {
-            _id: '$_id',
-            user_id: { $first: '$user_id' },
-            quote_id: { $first: '$quote_id' },
-            name: { $first: '$name' },
-            quote_data: { $first: '$quote_data' },
+          $addFields: {
+            quote_id_str: { $toString: '$quote_data._id' },
+          },
+        },
+        {
+          $lookup: {
+            from: 'items',
+            localField: 'quote_id_str',
+            foreignField: 'quote_id',
+            as: 'quote_data.items',
           },
         },
       ])
@@ -645,7 +618,50 @@ export class QuoteService {
   }
 
   async acceptQuote(quote_id: string, bid_id: string) {
-    const bidData = await this._bidService.findOne(bid_id);
+    const bidData = (
+      await this._bidModel
+        .aggregate([
+          {
+            $match: {
+              _id: new ObjectId(bid_id),
+            },
+          },
+          {
+            $addFields: {
+              user_id_obj: { $toObjectId: '$user_id' },
+              quote_id_obj: { $toObjectId: '$quote_id' },
+            },
+          },
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'user_id_obj',
+              foreignField: '_id',
+              as: 'carrier',
+            },
+          },
+          {
+            $lookup: {
+              from: 'carriers',
+              localField: 'carrier.email',
+              foreignField: 'email',
+              as: 'carrier_from_user',
+            },
+          },
+          {
+            $lookup: {
+              from: 'quotes',
+              localField: 'quote_id_obj',
+              foreignField: '_id',
+              as: 'quotes',
+            },
+          },
+          {
+            $limit: 1,
+          },
+        ])
+        .exec()
+    )[0];
 
     return await this._quoteModel
       .updateOne(
@@ -831,8 +847,6 @@ export class QuoteService {
 
     const data = await this._quoteModel.aggregate(_aggregate).exec();
 
-    console.log(data);
-
     // Convert data to worksheet
     const worksheet = XLSX.utils.json_to_sheet(data);
 
@@ -847,5 +861,38 @@ export class QuoteService {
     });
 
     return excelBuffer;
+  }
+
+  async addPoToQuote(
+    user_id: string,
+    references: Array<string>,
+    quote_id: string,
+  ) {
+    return this._quoteModel.updateOne(
+      {
+        user_id: user_id,
+        _id: quote_id,
+      },
+      {
+        $push: { references: { $each: references } },
+      },
+    );
+  }
+
+  async changeCarrier(user_id: string, quote_id: string) {
+    const quote = await this._quoteModel
+      .findOne({ user_id, _id: quote_id })
+      .exec();
+
+    if (quote.status != QuoteStatusEnum.BOOKED) {
+      throw new BadRequestException(
+        `Cant change carrier to quote with status ${quote.status}`,
+      );
+    }
+
+    return this._quoteModel.updateOne(
+      { user_id, _id: quote_id },
+      { bid_id: null, carrier_id: null, status: QuoteStatusEnum.REQUESTED },
+    );
   }
 }

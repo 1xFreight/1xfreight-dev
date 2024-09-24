@@ -2,14 +2,6 @@ import { User, UserSchema } from '../user/entities/user.entity';
 import { Address, AddressSchema } from '../address/address.entity';
 import { Equipment, EquipmentSchema } from '../user/entities/equipment.entity';
 import { Bid, BidSchema } from '../bid/bid.entity';
-import {
-  QuoteSubscriber,
-  QuoteSubscriberSchema,
-} from '../quote/entities/quote-subscriber.entity';
-import {
-  QuoteReference,
-  QuoteReferenceSchema,
-} from '../quote/entities/quote-reference.entity';
 import { Shipment, ShipmentSchema } from '../quote/entities/shipment.entity';
 import { Quote, QuoteSchema } from '../quote/entities/quote.entity';
 import { Template, TemplateSchema } from '../quote/entities/template.entity';
@@ -18,6 +10,7 @@ import {
   SpotGroup,
   SpotGroupSchema,
 } from '../carrier/entitites/spot-group.entity';
+import { Item, ItemSchema } from '../quote/entities/item.entity';
 
 export default [
   {
@@ -35,14 +28,6 @@ export default [
   {
     name: Bid.name,
     schema: BidSchema,
-  },
-  {
-    name: QuoteSubscriber.name,
-    schema: QuoteSubscriberSchema,
-  },
-  {
-    name: QuoteReference.name,
-    schema: QuoteReferenceSchema,
   },
   {
     name: Shipment.name,
@@ -63,5 +48,9 @@ export default [
   {
     name: SpotGroup.name,
     schema: SpotGroupSchema,
+  },
+  {
+    name: Item.name,
+    schema: ItemSchema,
   },
 ];

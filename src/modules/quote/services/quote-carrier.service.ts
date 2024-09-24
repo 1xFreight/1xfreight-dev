@@ -262,6 +262,19 @@ export class QuoteCarrierService {
         },
       },
       {
+        $addFields: {
+          quote_id_str: { $toString: '$_id' },
+        },
+      },
+      {
+        $lookup: {
+          from: 'items',
+          localField: 'quote_id_str',
+          foreignField: 'quote_id',
+          as: 'items',
+        },
+      },
+      {
         $limit: 1,
       },
       {

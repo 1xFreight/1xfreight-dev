@@ -71,6 +71,15 @@ export class Shipment {
 
   @Prop({ type: Types.ObjectId, ref: 'Quote' })
   quote_id: Quote;
+
+  @Prop()
+  density: number;
+
+  @Prop()
+  volume: number;
+
+  @Prop()
+  skid_spots: number;
 }
 
 export const ShipmentSchema = SchemaFactory.createForClass(Shipment);

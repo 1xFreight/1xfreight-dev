@@ -17,7 +17,7 @@ export type QuoteDocument = Quote & Document;
 export class Quote {
   _id: Types.ObjectId;
 
-  @Prop({ required: true, enum: QuoteEnum, default: QuoteEnum.FTL })
+  @Prop({ required: true, enum: QuoteEnum })
   type: string;
 
   @Prop({ required: true })

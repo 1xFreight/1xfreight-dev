@@ -6,4 +6,6 @@ export interface FiltersI {
   dropDate?: string;
   owner?: string;
   id?: string;
+  endDate?: string;
+  startDate?: string;
 }

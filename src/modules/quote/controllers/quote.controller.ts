@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Query, Post, Res } from '@nestjs/common';
+import { Body, Controller, Get, Query, Post, Res, Param } from '@nestjs/common';
 import { Auth } from '../../auth/decorators/auth.decorator';
 import { User } from '../../user/decorators/user.decorator';
 import { QuoteService } from '../services/quote.service';
@@ -7,11 +7,14 @@ import { Roles } from '../../auth/decorators/roles.decorator';
 import { UserRolesEnum } from '../../common/enums/roles.enum';
 import { BidService } from '../../bid/bid.service';
 import { AddressService } from '../../address/address.service';
+import { QuoteCreateService } from '../services/quote-create.service';
+import { QuoteEnum } from '../../common/enums/quote.enum';
 
 @Controller('quote')
 export class QuoteController {
   constructor(
     private readonly _quoteService: QuoteService,
+    private readonly _quoteCreateService: QuoteCreateService,
     private readonly _bidService: BidService,
     private readonly _addressService: AddressService,
   ) {}
@@ -55,8 +58,12 @@ export class QuoteController {
     UserRolesEnum.SHIPPER_MEMBER,
   ])
   async createQuote(@User() user, @Body() body) {
-    if (body.type === 'FTL')
-      return this._quoteService.createQuoteFTL(body, user);
+    if (body.type === QuoteEnum.FTL || body.type === QuoteEnum.LTL)
+      return this._quoteCreateService.createQuoteFtlLtl(
+        body,
+        user._id,
+        user.referral_id,
+      );
   }
 
   @Auth()
@@ -96,5 +103,46 @@ export class QuoteController {
     @Body() body: { quote_id: string; bid_id: string },
   ) {
     return !!(await this._quoteService.acceptQuote(body.quote_id, body.bid_id));
+  }
+
+  @Auth()
+  @Post('/add_po/:quote_id')
+  @Roles([
+    UserRolesEnum.SHIPPER,
+    UserRolesEnum.SHIPPER_DEMO,
+    UserRolesEnum.SHIPPER_MEMBER,
+  ])
+  async addPo(
+    @User() user,
+    @Body() body: Array<string>,
+    @Param('quote_id') quote_id,
+  ) {
+    return this._quoteService.addPoToQuote(user._id, body, quote_id);
+  }
+
+  @Auth()
+  @Post('/change_carrier/:quote_id')
+  @Roles([
+    UserRolesEnum.SHIPPER,
+    UserRolesEnum.SHIPPER_DEMO,
+    UserRolesEnum.SHIPPER_MEMBER,
+  ])
+  async changeCarrier(@User() user, @Param('quote_id') quote_id) {
+    return this._quoteService.changeCarrier(user._id, quote_id);
+  }
+
+  @Auth()
+  @Post('/duplicate-load')
+  @Roles([
+    UserRolesEnum.SHIPPER,
+    UserRolesEnum.SHIPPER_DEMO,
+    UserRolesEnum.SHIPPER_MEMBER,
+  ])
+  async duplicateLoad(@User() user, @Body() body) {
+    return this._quoteCreateService.duplicateLoad(
+      user._id,
+      body,
+      user?.referral_id,
+    );
   }
 }
