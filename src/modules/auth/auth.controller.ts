@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -77,5 +78,27 @@ export class AuthController {
       user._id,
       body?.password,
     ));
+  }
+
+  @Post('/use-token')
+  async useToken(
+    @Body() body: { accessToken: string },
+    @Res({ passthrough: true }) res,
+  ) {
+    let isTokenValid;
+
+    try {
+      isTokenValid = await this._authService.verifyToken(body.accessToken); // it return user from token if valid
+    } catch (e) {
+      throw new BadRequestException('Expired or invalid auth token');
+    }
+
+    if (isTokenValid) {
+      const newToken = await this._authService.generateTokens(isTokenValid);
+      res.cookie('accessToken', newToken, cookieConfig);
+      return true;
+    }
+
+    return false;
   }
 }

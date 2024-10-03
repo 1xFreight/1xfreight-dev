@@ -9,6 +9,7 @@ import { QuoteEnum } from '../../common/enums/quote.enum';
 import { QuoteStatusEnum } from '../../common/enums/quote-status.enum';
 import { Item, ItemDocument } from '../entities/item.entity';
 import { ObjectId } from 'mongodb';
+import { NotificationsService } from '../../notifications/notifications.service';
 
 @Injectable()
 export class QuoteCreateService {
@@ -21,6 +22,7 @@ export class QuoteCreateService {
     @InjectModel(Item.name)
     private readonly _itemModel: Model<ItemDocument>,
     private readonly _addressService: AddressService,
+    private readonly _notificationService: NotificationsService,
   ) {}
 
   async createQuoteFtlLtl(quote: any, user_id: string, referral_id?: string) {
@@ -85,6 +87,8 @@ export class QuoteCreateService {
         this._itemModel.create({ ...item, quote_id }),
       );
     }
+
+    this._notificationService.notifyNewQuote(quote_id.toString());
   }
 
   async duplicateLoad(user_id: string, payload: any, referral_id?: string) {
@@ -190,9 +194,6 @@ export class QuoteCreateService {
         updatedAt: undefined,
       })
     ).save();
-
-    console.log(originalQuote[0].details);
-    console.log(details);
 
     newAddresses.map((address) => {
       this._addressService.create({ ...address, quote_id });

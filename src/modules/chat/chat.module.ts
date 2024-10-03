@@ -7,6 +7,7 @@ import { AuthModule } from '../auth/auth.module';
 import { QuoteModule } from '../quote/quote.module';
 import { ChatController } from './chat.controller';
 import { FileSystemModule } from '../files/file.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { FileSystemModule } from '../files/file.module';
     AuthModule,
     QuoteModule,
     FileSystemModule,
+    NotificationsModule,
   ],
   providers: [ChatService, ChatGateway, ChatController],
   controllers: [ChatController],

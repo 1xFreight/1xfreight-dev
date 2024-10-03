@@ -8,9 +8,15 @@ import { BidModule } from '../bid/bid.module';
 import { QuoteCarrierService } from './services/quote-carrier.service';
 import { QuoteCarrierController } from './controllers/quote-carrier.controller';
 import { QuoteCreateService } from './services/quote-create.service';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [MongooseModule.forFeature(forFeatureDb), AddressModule, BidModule],
+  imports: [
+    MongooseModule.forFeature(forFeatureDb),
+    AddressModule,
+    BidModule,
+    NotificationsModule,
+  ],
   providers: [QuoteService, QuoteCarrierService, QuoteCreateService],
   controllers: [QuoteController, QuoteCarrierController],
   exports: [QuoteService],

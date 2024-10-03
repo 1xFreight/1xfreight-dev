@@ -8,4 +8,5 @@ export interface FiltersI {
   id?: string;
   endDate?: string;
   startDate?: string;
+  sortBy?: string;
 }

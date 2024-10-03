@@ -16,7 +16,7 @@ export class AuthService {
     private _jwtService: JwtService,
   ) {}
 
-  generateTokens(user: User) {
+  generateTokens(user: User, expiresIn = 432000) {
     const payload = {
       _id: user._id,
       email: user.email,
@@ -25,7 +25,7 @@ export class AuthService {
 
     return this._jwtService.sign(payload, {
       secret: process.env.JWT_SECRET,
-      expiresIn: 432000, // 5 days
+      expiresIn: expiresIn, // 5 days
     });
   }
 
@@ -89,6 +89,9 @@ export class AuthService {
   }
 
   async verifyToken(token: string) {
-    return this._jwtService.verify(token, { secret: process.env.JWT_SECRET });
+    if (this._jwtService.verify(token, { secret: process.env.JWT_SECRET }))
+      return this._jwtService.decode(token);
+
+    return false;
   }
 }

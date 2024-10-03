@@ -3,7 +3,6 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Quote, QuoteDocument } from '../entities/quote.entity';
 import { Model, Types } from 'mongoose';
 import { Shipment, ShipmentDocument } from '../entities/shipment.entity';
-import { QuoteEnum } from '../../common/enums/quote.enum';
 import { AddressService } from '../../address/address.service';
 import { QuoteStatusEnum } from '../../common/enums/quote-status.enum';
 import { User } from '../../user/entities/user.entity';
@@ -36,19 +35,25 @@ export class QuoteService {
   ) {}
 
   async getUserQuotes(
-    user_id: string,
+    user: any,
     params: PaginationWithFilters,
-    isCarrier: any = null,
+    isCarrier: boolean = false,
   ) {
     let _aggregate: any[] = [];
+    const sort = params.sortBy ? JSON.parse(params.sortBy) : { updatedAt: -1 };
+    const allowedStatuses = params?.status?.length
+      ? [params.status.toLowerCase()]
+      : [QuoteStatusEnum.REQUESTED, QuoteStatusEnum.CANCELED];
+
     let matchStage: any = {
       $match: {
-        $or: [{ user_id: user_id }, { referral_id: user_id }],
+        $or: [
+          { user_id: user._id },
+          { referral_id: user._id },
+          { subscribers: { $in: [user.email] } },
+        ],
         $expr: {
-          $in: [
-            '$status',
-            [QuoteStatusEnum.REQUESTED, QuoteStatusEnum.CANCELED],
-          ],
+          $in: ['$status', allowedStatuses],
         },
       },
     };
@@ -56,13 +61,10 @@ export class QuoteService {
     if (params?.owner) {
       matchStage = {
         $match: {
-          referral_id: user_id,
+          referral_id: user._id,
           user_id: { $in: params.owner.split(',') },
           $expr: {
-            $in: [
-              '$status',
-              [QuoteStatusEnum.REQUESTED, QuoteStatusEnum.CANCELED],
-            ],
+            $in: ['$status', allowedStatuses],
           },
         },
       };
@@ -72,13 +74,11 @@ export class QuoteService {
       matchStage = {
         $match: {
           _id: new Types.ObjectId(params.id),
-          $or: [{ user_id: user_id }, { referral_id: user_id }],
-          $expr: {
-            $in: [
-              '$status',
-              [QuoteStatusEnum.REQUESTED, QuoteStatusEnum.CANCELED],
-            ],
-          },
+          $or: [
+            { user_id: user._id },
+            { referral_id: user._id },
+            { referral_id: user.referral_id },
+          ],
         },
       };
     }
@@ -89,7 +89,7 @@ export class QuoteService {
           $expr: {
             $and: [
               {
-                $in: [isCarrier.email, { $ifNull: ['$subscribers', []] }],
+                $in: [user.email, { $ifNull: ['$subscribers', []] }],
               },
               {
                 $in: ['$status', [QuoteStatusEnum.REQUESTED]],
@@ -135,7 +135,7 @@ export class QuoteService {
                 $match: {
                   $expr: {
                     $and: [
-                      { $eq: [{ $toString: '$user_id' }, user_id] },
+                      { $eq: [{ $toString: '$user_id' }, user._id] },
                       { $eq: [{ $toString: '$quote_id' }, '$$quote_id'] },
                     ],
                   },
@@ -184,6 +184,19 @@ export class QuoteService {
                 },
               },
               {
+                $lookup: {
+                  from: 'carriers',
+                  localField: 'user.email',
+                  foreignField: 'email',
+                  as: 'local_carrier',
+                },
+              },
+              {
+                $addFields: {
+                  local_carrier: { $arrayElemAt: ['$local_carrier', 0] },
+                },
+              },
+              {
                 $project: {
                   'user.name': 1,
                   'user.email': 1,
@@ -193,6 +206,7 @@ export class QuoteService {
                   notes: 1,
                   _id: 1,
                   quote_id: 1,
+                  'local_carrier.name': 1,
                 },
               },
             ],
@@ -204,7 +218,7 @@ export class QuoteService {
     _aggregate = [
       ..._aggregate,
       matchStage,
-      { $sort: { updatedAt: -1 } },
+      { $sort: sort },
       {
         $project: {
           subscribers: 0,
@@ -307,6 +321,14 @@ export class QuoteService {
               address_type: AddressTypeEnum.DROP,
             },
           },
+        },
+      });
+    }
+
+    if (params?.type) {
+      _aggregate.push({
+        $match: {
+          type: params.type.toUpperCase(),
         },
       });
     }
@@ -464,6 +486,19 @@ export class QuoteService {
           bid_id: 0,
           bid_id_ibj: 0,
           carrier_user_id_str: 0,
+        },
+      },
+      {
+        $addFields: {
+          quote_id_str: { $toString: '$_id' },
+        },
+      },
+      {
+        $lookup: {
+          from: 'items',
+          localField: 'quote_id_str',
+          foreignField: 'quote_id',
+          as: 'items',
         },
       },
     ];

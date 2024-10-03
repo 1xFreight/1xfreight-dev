@@ -22,7 +22,12 @@ export class QuoteController {
   @Auth()
   @Get('/')
   async myQuotes(@User() user, @Query() params: PaginationWithFilters) {
-    return this._quoteService.getUserQuotes(user._id, params);
+    console.log(params);
+
+    return this._quoteService.getUserQuotes(user, {
+      ...params,
+      // sortBy: `{ "createdAt":-1 }`,
+    });
   }
   @Auth()
   @Get('/shipments')

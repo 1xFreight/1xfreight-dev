@@ -42,14 +42,18 @@ export class ChatController {
     const fileId = await this._fileService.storeImage(file);
     const { originalname, size } = file;
 
-    const message = await this._chatService.addMessage(user._id, {
-      message: '',
-      room: room,
-      user_id: user._id,
-      document: fileId,
-      documentName: originalname,
-      documentSize: size,
-    });
+    const message = await this._chatService.addMessage(
+      user._id,
+      {
+        message: '',
+        room: room,
+        user_id: user._id,
+        document: fileId,
+        documentName: originalname,
+        documentSize: size,
+      },
+      user.email,
+    );
 
     this.eventEmitter.emit('new-message-upload-file', { room, message });
 

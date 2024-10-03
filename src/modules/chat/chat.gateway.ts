@@ -12,7 +12,6 @@ import { SocketUser } from '../socket/decorators/socket-user.decorator';
 import { SocketAuth } from '../auth/decorators/socket-auth.decorator';
 import { QuoteService } from '../quote/services/quote.service';
 import { OnEvent } from '@nestjs/event-emitter';
-import { Chat } from './chat.entity';
 
 @WebSocketGateway({ namespace: 'chat' })
 export class ChatGateway {
@@ -41,10 +40,14 @@ export class ChatGateway {
 
     if (!userRoom) return;
 
-    const savedMessage = await this._chatService.addMessage(user._id, {
-      message,
-      room: userRoom,
-    });
+    const savedMessage = await this._chatService.addMessage(
+      user._id,
+      {
+        message,
+        room: userRoom,
+      },
+      user.email,
+    );
 
     this._wss.to(userRoom).emit('new-message', savedMessage);
   }

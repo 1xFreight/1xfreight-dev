@@ -52,7 +52,7 @@ export class QuoteCarrierController {
   @Get('/carrier')
   @Roles([UserRolesEnum.CARRIER])
   async carrierQuotes(@User() user, @Query() params: PaginationWithFilters) {
-    return this._quoteService.getUserQuotes(user._id, params, user);
+    return this._quoteService.getUserQuotes(user, params, true);
   }
 
   @Auth()

@@ -18,6 +18,7 @@ import { ChatModule } from './modules/chat/chat.module';
 import { BidModule } from './modules/bid/bid.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
     BidModule,
     EventEmitterModule.forRoot(),
     AnalyticsModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [
