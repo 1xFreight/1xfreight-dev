@@ -137,6 +137,17 @@ export class QuoteController {
   }
 
   @Auth()
+  @Post('/cancel/:quote_id')
+  @Roles([
+    UserRolesEnum.SHIPPER,
+    UserRolesEnum.SHIPPER_DEMO,
+    UserRolesEnum.SHIPPER_MEMBER,
+  ])
+  async cancelLoad(@User() user, @Param('quote_id') quote_id) {
+    return this._quoteService.cancelLoad(user._id, quote_id);
+  }
+
+  @Auth()
   @Post('/duplicate-load')
   @Roles([
     UserRolesEnum.SHIPPER,

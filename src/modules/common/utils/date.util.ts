@@ -21,6 +21,39 @@ export function formatDate(dateString) {
   return new Intl.DateTimeFormat('en-US', options).format(date);
 }
 
+export function formatTime(timeString) {
+  if (!timeString) return;
+
+  const timeParts = timeString.split(' ');
+  const timeMidday = timeParts[1];
+  const onlyTime = timeParts[0].split(':');
+
+  // Properly format hours and minutes
+  const formattedHours =
+    Number(onlyTime[0]) < 10 ? '0' + Number(onlyTime[0]) : onlyTime[0];
+  const formattedMinutes =
+    Number(onlyTime[1]) < 10 ? '0' + Number(onlyTime[1]) : onlyTime[1];
+
+  return `${formattedHours}:${formattedMinutes} ${timeMidday}`;
+}
+
+export function formatDateTime(dateString) {
+  if (!dateString) return '';
+
+  const date = new Date(dateString);
+
+  const options = {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: true,
+  } as Intl.DateTimeFormatOptions;
+
+  return date.toLocaleString('en-US', options);
+}
+
 export function chatDateFormat(dateString) {
   const date = new Date(dateString);
 

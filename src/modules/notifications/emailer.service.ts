@@ -4,7 +4,9 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Quote, QuoteDocument } from '../quote/entities/quote.entity';
 import { Model } from 'mongoose';
 import { User, UserDocument } from '../user/entities/user.entity';
-import { formatDate } from '../common/utils/date.util';
+import { formatDate, formatDateTime } from '../common/utils/date.util';
+import { QuoteStatusEnum } from '../common/enums/quote-status.enum';
+import * as process from 'process';
 
 @Injectable()
 export class EmailService {
@@ -15,12 +17,12 @@ export class EmailService {
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
   ) {
     this.transporter = nodemailer.createTransport({
-      host: 'smtp.zoho.eu',
-      port: 465,
-      secure: true,
+      host: process.env.SMTP_HOST || '', // Ensure a fallback in case the env variable is undefined
+      port: Number(process.env.SMTP_PORT) || 587, // Ensure port is a number
+      secure: process.env.SMTP_SECURE === 'true', // Convert to boolean explicitly
       auth: {
-        user: 'test@mibackwi3021ie90sajx89120yh31082o.store',
-        pass: '5!evWmie',
+        user: process.env.SMTP_USER || '', // Add fallback
+        pass: process.env.SMTP_PASS || '', // Add fallback
       },
     });
   }
@@ -30,7 +32,6 @@ export class EmailService {
     to: string,
     subject: string,
     text: string,
-    replyTo: string,
     html?: string,
   ) {
     const info = await this.transporter.sendMail({
@@ -38,7 +39,6 @@ export class EmailService {
       to, // List of recipients
       subject, // Subject line
       text, // Plain text body
-      replyTo,
       html: html, // HTML body (optional)
     });
 
@@ -46,120 +46,7 @@ export class EmailService {
     return info;
   }
 
-  generateQuoteEmailHtml(
-    quoteDetails: any,
-    addresses: any[],
-    items: any[],
-    link: string,
-    author: string,
-  ): string {
-    const htmlContent = `
-  <!DOCTYPE html>
-  <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    </head>
-    <body style="margin:0;padding:0;background-color:#ffffff;">
-      <div style="width:100%;background-color:#ffffff;">
-        <div style="width:100%;max-width:560px;padding:24px;margin:0 auto;background-color:#e6edff;border:2px solid rgba(0, 32, 221, 0.1);">
-          <h2 style="font-size: 18px">${author}</h2>
-          <div style="margin-top:16px;">
-            <h3 style="color:#ffffff;font-weight:700;font-size:14px;text-transform:uppercase;background:#545454;padding:8px;border-radius:4px;">Details:</h3>
-            ${Object.keys(quoteDetails)
-              .map((key) => {
-                if (typeof quoteDetails[key] === 'object') return '';
-                return `
-                <div style="padding:8px 12px;font-weight:600;font-size:13px;display:flex;justify-content:space-between;color:#646464;border-bottom:1px solid #ddd;">
-                  <span>${key}:</span><span>${quoteDetails[key]}</span>
-                </div>
-                `;
-              })
-              .join('')}
-          </div>
-          <div style="margin-top:16px;">
-            <h3 style="color:#ffffff;font-weight:700;font-size:14px;text-transform:uppercase;background:#545454;padding:8px;border-radius:4px;">Locations:</h3>
-            ${addresses
-              .map(
-                (address, index) => `
-              <div style="padding:8px 12px;font-weight:600;font-size:13px;display:flex;justify-content:space-between;color:#646464;border-bottom:1px solid #ddd;">
-                <span>${index + 1}:</span><span>${address.address}</span>
-              </div>
-            `,
-              )
-              .join('')}
-          </div>
-          ${
-            items.length > 0
-              ? `
-          <div style="margin-top:16px;">
-            <h3 style="color:#ffffff;font-weight:700;font-size:14px;text-transform:uppercase;background:#545454;padding:8px;border-radius:4px;">Items:</h3>
-            ${items
-              .map(
-                (item) => `
-              <div style="padding:12px;border:2px solid rgba(0, 32, 221, 0.1);border-radius:4px;margin-bottom:12px;">
-                ${Object.keys(item)
-                  .map(
-                    (key) => `
-                  <div style="padding:8px 12px;font-weight:600;font-size:13px;display:flex;justify-content:space-between;color:#646464;border-bottom:1px solid #ddd;">
-                    <span>${key}:</span><span>${item[key]}</span>
-                  </div>
-                `,
-                  )
-                  .join('')}
-              </div>
-            `,
-              )
-              .join('')}
-          </div>
-          `
-              : ''
-          }
-          <div style="margin-top:24px;text-align:center;">
-            <a href=${link} target="_blank" style="display:inline-block;width:100%;padding:16px 0;background:#0020DD;border-radius:8px;border:2px solid #ffffff;font-size:24px;color:#ffffff;text-decoration:none;">VIEW</a>
-          </div>
-        </div>
-      </div>
-    </body>
-  </html>
-  `;
-    return htmlContent;
-  }
-
-  generateMessageEmailHtml(link: string, author: string, text: string): string {
-    const htmlContent = `
-  <!DOCTYPE html>
-  <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    </head>
-    <body style="margin:0;padding:0;background-color:#ffffff;">
-      <div style="width:100%;background-color:#ffffff;">
-        <div style="width:100%;max-width:560px;padding:24px;margin:0 auto;background-color:#e6edff;border:2px solid rgba(0, 32, 221, 0.1);">
-          <h2 style="font-size: 18px">${author}</h2>
-          
-          <div style="margin-top:16px;">
-            <h3 style="color:#ffffff;font-weight:700;font-size:14px;text-transform:uppercase;background:#545454;padding:8px;border-radius:4px;">NEW MESSAGE:</h3>
-           
-              <div style="padding:8px 12px;font-weight:600;font-size:13px;display:flex;justify-content:space-between;color:#646464;border-bottom:1px solid #ddd;">
-                <span>${text}</span>
-              </div>
-            
-          </div>
-        
-          <div style="margin-top:24px;text-align:center;">
-            <a href=${link} target="_blank" style="display:inline-block;width:100%;padding:16px 0;background:#0020DD;border-radius:8px;border:2px solid #ffffff;font-size:24px;color:#ffffff;text-decoration:none;">VIEW</a>
-          </div>
-        </div>
-      </div>
-    </body>
-  </html>
-  `;
-    return htmlContent;
-  }
-
-  generateQuoteEmailHTML(quote, message = null) {
+  generateQuoteEmailHTML(quote, message = null, statusUpdate = null) {
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -194,6 +81,51 @@ ${
         : ''
     }
     
+    ${
+      statusUpdate
+        ? `
+    <div style="width: 100%">
+   <div style="font-size: 16px; color: black; font-weight: 500; margin-top: 0px;">
+  ${statusUpdate.carrierName} <span style="float:right; opacity: 0.5"> ${statusUpdate.notificationTime ? formatDateTime(statusUpdate.notificationTime) : ''}</span>
+</div> 
+  <div style="font-size: 16px; color: black; font-weight: 400; margin-top: -5px;">
+  <span style="opacity: 0.35">${statusUpdate.oldStatus ? 'changed quote status' : 'carrier arrived at location'} </span>
+</div> 
+
+${
+  statusUpdate.oldStatus && statusUpdate.newStatus
+    ? `<div style="display: flex; vertical-align: center; margin-left: auto; margin-top:10px">
+    
+  <p style="font-weight: 500; color: #82C181; font-size: 16px; opacity: 0.7;margin-top: 4px; margin-left: 0px">
+    ${statusUpdate.oldStatus.replace('_', ' ')}
+  </p>
+  <p style="margin-top: 5px;margin-left: 15px;margin-right: 20px; color: #82C181; opacity: 0.6">
+    →
+  </p>
+  <p style="font-weight: 500; color: #82C181; font-size: 20px; margin: 0" >
+    ${statusUpdate.newStatus.replace('_', ' ')}
+  </p>
+</div>`
+    : ''
+}
+  
+  
+  ${
+    statusUpdate.arrival
+      ? `<p>
+    ${statusUpdate.arrival}
+  </p>`
+      : ''
+  }
+  
+</div>
+      
+    `
+        : ''
+    }
+    
+    ${quote.status == QuoteStatusEnum.CANCELED ? ` <p>This shipment was canceled by ${quote.author}.</p>` : ''}
+    
     
     <div style="display: flex; width: 100%; position: relative">
     <h1 style="color: #0020DD; font-size: 22px; font-weight: 600; margin-bottom: 0;max-width: 85%; width: 100%">${quote.author}</h1>
@@ -203,19 +135,19 @@ ${
     
     <!-- Route Information -->
     <div style="margin-bottom: 3px;display: flex; align-items: center;">
-      <img src="https://i.ibb.co/pdc9hxf/route-50.png" alt="route" width="20" height="20"> <strong style="margin: 0 8px;">Route:</strong> ${quote.route}
+      <img src="https://i.ibb.co/pdc9hxf/route-50.png" alt="route" width="20" height="20"> <strong style="margin: 0 8px; white-space: nowrap">Route:</strong> ${quote.route}
     </div>
 
     <!-- Type Information -->
     <div style="margin-bottom: 3px;display: flex; align-items: center;">
-      <img src="https://i.ibb.co/NZtLySv/type-50.png" alt="type" width="20" height="20"> <strong style="margin: 0 8px;">Type:</strong> ${quote.type}
+      <img src="https://i.ibb.co/NZtLySv/type-50.png" alt="type" width="20" height="20"> <strong style="margin: 0 8px; white-space: nowrap">Type:</strong> ${quote.type}
     </div>
     
     <!-- Equipments if available -->
     ${
       quote.equipments && quote.equipments.length > 0
         ? `<div style="margin-bottom: 3px;display: flex; align-items: center;">
-             <img src="https://i.ibb.co/kDYHHNV/equipment-50.png" alt="type" width="20" height="20"> <strong style="margin: 0 8px;">Equipments:</strong> ${quote.equipments.join(', ')}
+             <img src="https://i.ibb.co/kDYHHNV/equipment-50.png" alt="type" width="20" height="20"> <strong style="margin: 0 8px; white-space: nowrap">Equipments:</strong> ${quote.equipments.join(', ')}
            </div>`
         : ''
     }
@@ -224,14 +156,14 @@ ${
     ${
       quote.commodity
         ? `<div style="margin-bottom: 3px;display: flex; align-items: center;">
-             <img src="https://i.ibb.co/NV1rCYc/commodity-50.png" alt="type" width="20" height="20"> <strong style="margin: 0 8px;">Commodity:</strong> ${quote.commodity}
+             <img src="https://i.ibb.co/NV1rCYc/commodity-50.png" alt="type" width="20" height="20"> <strong style="margin: 0 8px; white-space: nowrap">Commodity:</strong> ${quote.commodity}
            </div>`
         : ''
     }
     
     <!-- Weight Information -->
     <div style="margin-bottom: 3px;display: flex; align-items: center;">
-      <img src="https://i.ibb.co/k3VrYPH/weight-50.png" alt="type" width="20" height="20"> <strong style="margin: 0 8px;">Weight:</strong> ${quote.weight}
+      <img src="https://i.ibb.co/k3VrYPH/weight-50.png" alt="type" width="20" height="20"> <strong style="margin: 0 8px; white-space: nowrap">Weight:</strong> ${quote.weight}
     </div>
     
     
@@ -241,7 +173,7 @@ ${
   <div style="color: #545454;margin-bottom: 6px; margin-top: 50px;">
     <div style="display: flex; align-items: center;gap: 4px; color: #545454">
       <img src="https://i.ibb.co/j3NBz1j/location-50.png" alt="location" width="20" height="20">
-      <strong style="margin: 0 8px;">Pickup ${quote.pickup.length > 1 ? address.order : ''}:</strong> ${address.address}
+      <strong style="margin: 0 8px; white-space: nowrap">Pickup ${quote.pickup.length > 1 ? address.order : ''}:</strong> ${address.address}
     </div>
     
     ${
@@ -249,7 +181,7 @@ ${
         ? `
       <div style="display: flex; align-items: center;gap: 4px; color: #545454">
       <img src="https://i.ibb.co/LvwBdYP/calendar-50.png" alt="calendar" width="20" height="20">
-    <strong style="margin: 0 8px;">Pickup on:</strong> ${formatDate(address.date)} / ${address.time_start ?? ''} ${address.time_end ? ' - ' + address.time_end : ''}, ${address.shipping_hours}
+    <strong style="margin: 0 8px; white-space: nowrap">Pickup on:</strong> ${formatDate(address.date)} / ${address.time_start ?? ''} ${address.time_end ? ' - ' + address.time_end : ''}, ${address.shipping_hours?.toLowerCase() ?? ''}
     </div>
     `
         : ''
@@ -266,7 +198,7 @@ ${
   <div style="color: #545454;margin-bottom: 6px; margin-top: 50px;">
     <div style="display: flex; align-items: center;gap: 4px; color: #545454">
       <img src="https://i.ibb.co/j3NBz1j/location-50.png" alt="location" width="20" height="20">
-      <strong style="margin: 0 8px;">Delivery ${quote.drop.length > 1 ? address.order : ''}:</strong> ${address.address}
+      <strong style="margin: 0 8px; white-space: nowrap">Delivery ${quote.drop.length > 1 ? address.order : ''}:</strong> ${address.address}
     </div>
     
     ${
@@ -274,7 +206,7 @@ ${
         ? `
       <div style="display: flex; align-items: center;gap: 4px; color: #545454">
       <img src="https://i.ibb.co/LvwBdYP/calendar-50.png" alt="calendar" width="20" height="20">
-    <strong style="margin: 0 8px;">Delivery on:</strong> ${formatDate(address.date)} / ${address.time_start ?? ''} ${address.time_end ? ' - ' + address.time_end : ''}, ${address.shipping_hours}
+    <strong style="margin: 0 8px; white-space: nowrap">Delivery on:</strong> ${formatDate(address.date)} / ${address.time_start ?? ''} ${address.time_end ? ' - ' + address.time_end : ''}, ${address.shipping_hours?.toLowerCase() ?? ''}
     </div>
     `
         : ''

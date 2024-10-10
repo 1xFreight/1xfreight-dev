@@ -8,6 +8,7 @@ import { UserRolesEnum } from '../../common/enums/roles.enum';
 import { User } from '../../user/decorators/user.decorator';
 import { PaginationWithFilters } from '../../common/interfaces/pagination.interface';
 import { QuoteCarrierService } from '../services/quote-carrier.service';
+import { formatDate, formatTime } from '../../common/utils/date.util';
 
 @Controller('quote')
 export class QuoteCarrierController {
@@ -40,11 +41,24 @@ export class QuoteCarrierController {
         body.arrival_time,
         body.address_id,
       );
+
+      const addressName = await (
+        await this._addressService.findById(body.address_id)
+      ).address;
+
+      return !!(await this._quoteCarrierService.changeQuoteStatusByCarrier(
+        user._id,
+        quote_id,
+        user.email,
+        `${formatTime(body.arrival_time)} ${formatDate(body.arrival_date)} , ${addressName}`,
+      ));
     }
 
     return !!(await this._quoteCarrierService.changeQuoteStatusByCarrier(
       user._id,
       quote_id,
+      user.email,
+      null,
     ));
   }
 

@@ -7,6 +7,7 @@ import { Client } from '@googlemaps/google-maps-services-js';
 import { isDateValid } from '../common/utils/date.util';
 import { AddressArrivalStatusEnum } from '../common/enums/address-type.enum';
 import { ObjectId } from 'mongodb';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class AddressService {
@@ -15,6 +16,7 @@ export class AddressService {
   constructor(
     @InjectModel(Address.name)
     private readonly _addressModel: Model<AddressDocument>,
+    private readonly _notificationsService: NotificationsService,
   ) {
     this.client = new Client({});
   }
@@ -52,6 +54,20 @@ export class AddressService {
         },
       ])
       .exec();
+  }
+
+  async findById(id: string) {
+    return await (
+      await this._addressModel
+        .aggregate([
+          {
+            $match: {
+              _id: new ObjectId(id),
+            },
+          },
+        ])
+        .exec()
+    )[0];
   }
 
   async findByUser(user_id: string, params: PaginationWithFilters) {

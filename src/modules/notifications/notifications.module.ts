@@ -5,10 +5,11 @@ import { MongooseModule } from '@nestjs/mongoose';
 import forFeatureDb from '../db/for-feature.db';
 import { AuthModule } from '../auth/auth.module';
 import { NotificationsService } from './notifications.service';
+import { NotificationGateway } from './notification.gateway';
 
 @Module({
   imports: [MongooseModule.forFeature(forFeatureDb), AuthModule],
-  providers: [EmailService, NotificationsService],
+  providers: [EmailService, NotificationsService, NotificationGateway],
   controllers: [NotificationsController],
   exports: [NotificationsService],
 })

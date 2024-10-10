@@ -9,6 +9,7 @@ import { BidService } from '../../bid/bid.service';
 import { PaginationWithFilters } from '../../common/interfaces/pagination.interface';
 import { QuoteStatusEnum } from '../../common/enums/quote-status.enum';
 import { ObjectId } from 'mongodb';
+import { NotificationsService } from '../../notifications/notifications.service';
 
 @Injectable()
 export class QuoteCarrierService {
@@ -20,6 +21,7 @@ export class QuoteCarrierService {
     private readonly _templateModel: Model<TemplateDocument>,
     private readonly _addressService: AddressService,
     private readonly _bidService: BidService,
+    private readonly _notificationService: NotificationsService,
   ) {}
 
   async declineQuote(carrier_email: string, quote_id: string) {
@@ -287,7 +289,12 @@ export class QuoteCarrierService {
     return (await this._quoteModel.aggregate(_aggregate).exec())[0];
   }
 
-  async changeQuoteStatusByCarrier(user_id: string, quote_id: string) {
+  async changeQuoteStatusByCarrier(
+    user_id: string,
+    quote_id: string,
+    user_email: string,
+    arrival_text: string | null,
+  ) {
     const quoteQ = await this._quoteModel
       .aggregate([
         {
@@ -310,9 +317,19 @@ export class QuoteCarrierService {
       ])
       .exec();
 
-    if (!quoteQ) return;
+    if (!quoteQ.length) return;
 
     const quote = quoteQ[0];
+
+    const notifyStatusUpdate = () => {
+      this._notificationService.notifyStatusUpdate(
+        quote_id,
+        null,
+        null,
+        user_email,
+        arrival_text,
+      );
+    };
 
     if (quote.status == QuoteStatusEnum.AT_PICKUP) {
       const pickup = quote.addresses.filter(
@@ -325,7 +342,7 @@ export class QuoteCarrierService {
         address.arrival_time ? (fulfilledAddresses += 1) : '';
       });
 
-      if (fulfilledAddresses != pickup.length) return;
+      if (fulfilledAddresses != pickup.length) return notifyStatusUpdate();
     }
 
     if (quote.status == QuoteStatusEnum.AT_DESTINATION) {
@@ -338,7 +355,7 @@ export class QuoteCarrierService {
       drop.map((address) => {
         address.arrival_time ? (fulfilledAddresses += 1) : '';
       });
-      if (fulfilledAddresses != drop.length) return;
+      if (fulfilledAddresses != drop.length) return notifyStatusUpdate();
     }
 
     if (quote.status == QuoteStatusEnum.DELIVERED) return;
@@ -350,6 +367,16 @@ export class QuoteCarrierService {
       currentStatusIndex + 1
     ];
     const nextStatus = QuoteStatusEnum[nextStatusKey];
+
+    console.log(nextStatus);
+
+    this._notificationService.notifyStatusUpdate(
+      quote_id,
+      quote.status,
+      nextStatus,
+      user_email,
+      arrival_text,
+    );
 
     return this._quoteModel
       .updateOne(

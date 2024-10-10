@@ -18,6 +18,7 @@ import {
   CarrierDocument,
 } from '../../carrier/entitites/carrier.entity';
 import { Bid, BidDocument } from '../../bid/bid.entity';
+import { NotificationsService } from '../../notifications/notifications.service';
 
 @Injectable()
 export class QuoteService {
@@ -32,6 +33,7 @@ export class QuoteService {
     private readonly _addressService: AddressService,
     private readonly _bidService: BidService,
     @InjectModel(Bid.name) private readonly _bidModel: Model<BidDocument>,
+    private readonly _notificationService: NotificationsService,
   ) {}
 
   async getUserQuotes(
@@ -186,8 +188,19 @@ export class QuoteService {
               {
                 $lookup: {
                   from: 'carriers',
-                  localField: 'user.email',
-                  foreignField: 'email',
+                  let: { userEmail: '$user.email' },
+                  pipeline: [
+                    {
+                      $match: {
+                        $expr: {
+                          $and: [
+                            { $eq: [{ $toString: '$user_id' }, user._id] },
+                            { $eq: [{ $toString: '$email' }, '$$userEmail'] },
+                          ],
+                        },
+                      },
+                    },
+                  ],
                   as: 'local_carrier',
                 },
               },
@@ -921,7 +934,7 @@ export class QuoteService {
 
     if (quote.status != QuoteStatusEnum.BOOKED) {
       throw new BadRequestException(
-        `Cant change carrier to quote with status ${quote.status}`,
+        `It is not possible to change carrier once the carrier is on its way.`,
       );
     }
 
@@ -929,5 +942,28 @@ export class QuoteService {
       { user_id, _id: quote_id },
       { bid_id: null, carrier_id: null, status: QuoteStatusEnum.REQUESTED },
     );
+  }
+
+  async cancelLoad(user_id: string, quote_id: string) {
+    const quote = await this._quoteModel
+      .findOne({ user_id, _id: quote_id })
+      .exec();
+
+    if (
+      quote.status != QuoteStatusEnum.BOOKED &&
+      quote.status != QuoteStatusEnum.REQUESTED
+    ) {
+      throw new BadRequestException(
+        `It is not possible to cancel a load once the carrier is on its way.`,
+      );
+    }
+
+    return this._quoteModel
+      .updateOne(
+        { user_id, _id: quote_id },
+        { status: QuoteStatusEnum.CANCELED },
+      )
+      .exec()
+      .then(() => this._notificationService.notifyCancelLoad(quote_id));
   }
 }

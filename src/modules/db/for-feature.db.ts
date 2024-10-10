@@ -11,6 +11,10 @@ import {
   SpotGroupSchema,
 } from '../carrier/entitites/spot-group.entity';
 import { Item, ItemSchema } from '../quote/entities/item.entity';
+import {
+  Notification,
+  NotificationSchema,
+} from '../notifications/notification.entity';
 
 export default [
   {
@@ -52,5 +56,9 @@ export default [
   {
     name: Item.name,
     schema: ItemSchema,
+  },
+  {
+    name: Notification.name,
+    schema: NotificationSchema,
   },
 ];
