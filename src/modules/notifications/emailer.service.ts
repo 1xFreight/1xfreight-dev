@@ -34,13 +34,16 @@ export class EmailService {
     text: string,
     html?: string,
   ) {
-    const info = await this.transporter.sendMail({
-      from, // Sender address
-      to, // List of recipients
-      subject, // Subject line
-      text, // Plain text body
-      html: html, // HTML body (optional)
-    });
+    let info;
+    try {
+      info = await this.transporter.sendMail({
+        from, // Sender address
+        to, // List of recipients
+        subject, // Subject line
+        text, // Plain text body
+        html: html, // HTML body (optional)
+      });
+    } catch {}
 
     console.log('Message sent: %s', info.messageId);
     return info;
@@ -127,26 +130,26 @@ ${
     ${quote.status == QuoteStatusEnum.CANCELED ? ` <p>This shipment was canceled by ${quote.author}.</p>` : ''}
     
     
-    <div style="display: flex; width: 100%; position: relative">
+    <div style="display: flex; width: 100%; position: relative;text-align: left">
     <h1 style="color: #0020DD; font-size: 22px; font-weight: 600; margin-bottom: 0;max-width: 85%; width: 100%">${quote.author}</h1>
     <p style="color: #545454; font-size: 16px; opacity: 0.5;margin-bottom: 10px; float: right">#${quote.id}</p>
 </div>
     <p style="color: #545454; font-size: 16px; opacity: 0.5;margin-bottom: 10px;">${quote.author} uses 1xFreight to manage spot quotes. Please provide a quote for the following shipment:</p>
     
     <!-- Route Information -->
-    <div style="margin-bottom: 3px;display: flex; align-items: center;">
+    <div style="margin-bottom: 3px;display: flex; align-items: start;">
       <img src="https://i.ibb.co/pdc9hxf/route-50.png" alt="route" width="20" height="20"> <strong style="margin: 0 8px; white-space: nowrap">Route:</strong> ${quote.route}
     </div>
 
     <!-- Type Information -->
-    <div style="margin-bottom: 3px;display: flex; align-items: center;">
+    <div style="margin-bottom: 3px;display: flex; align-items: start;">
       <img src="https://i.ibb.co/NZtLySv/type-50.png" alt="type" width="20" height="20"> <strong style="margin: 0 8px; white-space: nowrap">Type:</strong> ${quote.type}
     </div>
     
     <!-- Equipments if available -->
     ${
       quote.equipments && quote.equipments.length > 0
-        ? `<div style="margin-bottom: 3px;display: flex; align-items: center;">
+        ? `<div style="margin-bottom: 3px;display: flex; align-items: start;">
              <img src="https://i.ibb.co/kDYHHNV/equipment-50.png" alt="type" width="20" height="20"> <strong style="margin: 0 8px; white-space: nowrap">Equipments:</strong> ${quote.equipments.join(', ')}
            </div>`
         : ''
@@ -155,7 +158,7 @@ ${
      <!-- Commodity if available -->
     ${
       quote.commodity
-        ? `<div style="margin-bottom: 3px;display: flex; align-items: center;">
+        ? `<div style="margin-bottom: 3px;display: flex; align-items: start;">
              <img src="https://i.ibb.co/NV1rCYc/commodity-50.png" alt="type" width="20" height="20"> <strong style="margin: 0 8px; white-space: nowrap">Commodity:</strong> ${quote.commodity}
            </div>`
         : ''

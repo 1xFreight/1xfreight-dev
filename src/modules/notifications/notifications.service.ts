@@ -516,11 +516,9 @@ export class NotificationsService {
 
     const url = process.env.URL;
 
-    quote.subscribers.map(async (subscriberEmail, index) => {
-      if (index >= 1) return; // REMOVE
-
+    quote.subscribers.map(async (subscriberEmail) => {
       const subscriberUser = await this.userModel
-        .findOne({ email: 'dredd1@test.com' ?? subscriberEmail })
+        .findOne({ email: subscriberEmail })
         .exec();
 
       const accessToken = this._authService.generateTokens(
@@ -1011,7 +1009,6 @@ export class NotificationsService {
         // `${quoteAuthor.name} <${quoteAuthor.email}>`,
         `${quoteAuthor.name} <hello@1xFreight.com>`,
         subscriberEmail,
-        // 'delertson@gmail.com',
         `Shipment canceled: ${shortAddress(pickupFirstAddress.address)} to ${shortAddress(dropLastAddress.address)} [${quote_id.substring(quote_id.length - 7, quote_id.length).toUpperCase()}]`,
         '',
         htmlNew,
