@@ -42,7 +42,7 @@ export class QuoteService {
     isCarrier: boolean = false,
   ) {
     let _aggregate: any[] = [];
-    const sort = params.sortBy ? JSON.parse(params.sortBy) : { updatedAt: -1 };
+
     const allowedStatuses = params?.status?.length
       ? [params.status.toLowerCase()]
       : [QuoteStatusEnum.REQUESTED, QuoteStatusEnum.CANCELED];
@@ -228,10 +228,28 @@ export class QuoteService {
       );
     }
 
+    let sort: any = { updatedAt: -1 };
+
+    if (params.sort) {
+      // Check if params.sort is a string and can be parsed
+      if (typeof params.sort === 'string') {
+        try {
+          const sortObj = JSON.parse(params.sort);
+          if (sortObj && Object.keys(sortObj).length) {
+            sort = sortObj;
+          }
+        } catch (error) {
+          console.error('Invalid JSON in sort parameter:', error);
+        }
+      } else if (typeof params.sort === 'object') {
+        // If it's already an object, assign it directly
+        sort = params.sort;
+      }
+    }
+
     _aggregate = [
       ..._aggregate,
       matchStage,
-      { $sort: sort },
       {
         $project: {
           subscribers: 0,
@@ -261,12 +279,93 @@ export class QuoteService {
             {
               $replaceRoot: { newRoot: '$addresses' },
             },
+            {
+              $addFields: {
+                address: `${isCarrier ? '$partial_address' : '$address'}`,
+              },
+            },
+            isCarrier
+              ? {
+                  $project: {
+                    address: 1,
+                    date: 1,
+                    address_type: 1,
+                    shipping_hours: 1,
+                    time_start: 1,
+                    time_end: 1,
+                  },
+                }
+              : { $addFields: {} },
           ],
         },
       },
       {
         $addFields: {
+          // Adding the firstPickup field
+          firstPickup: {
+            $first: {
+              $filter: {
+                input: '$addresses',
+                as: 'address',
+                cond: {
+                  $and: [
+                    { $eq: ['$$address.address_type', 'pickup'] }, // Match address_type = 'pickup'
+                    { $eq: ['$$address.order', 1] }, // Match order = 1
+                  ],
+                },
+              },
+            },
+          },
+          // Adding the firstDrop field
+          firstDrop: {
+            $first: {
+              $filter: {
+                input: '$addresses',
+                as: 'address',
+                cond: {
+                  $and: [
+                    { $eq: ['$$address.address_type', 'drop'] }, // Match address_type = 'drop'
+                    { $eq: ['$$address.order', 1] }, // Match order = 1
+                  ],
+                },
+              },
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
           quote_id_str: { $toString: '$_id' },
+          'firstPickup.dateAsDate': {
+            $dateFromString: {
+              dateString: '$firstPickup.date', // Properly wrapping the date string in an object
+            },
+          },
+          'firstDrop.dateAsDate': {
+            $dateFromString: {
+              dateString: '$firstDrop.date', // Properly wrapping the date string in an object
+            },
+          },
+        },
+      },
+      !isCarrier
+        ? {
+            $addFields: {
+              bidsNumber: {
+                $size: '$bids',
+              },
+            },
+          }
+        : { $addFields: {} },
+      {
+        $addFields: {
+          quote_id_short: {
+            $substrBytes: [
+              '$quote_id_str',
+              { $subtract: [{ $strLenBytes: '$quote_id_str' }, 7] },
+              7,
+            ],
+          },
         },
       },
       {
@@ -285,6 +384,7 @@ export class QuoteService {
           as: 'details',
         },
       },
+      { $sort: sort },
     ];
 
     if (params?.searchText) {
@@ -368,17 +468,43 @@ export class QuoteService {
 
   async getShipments(user_id: string, params: PaginationWithFilters) {
     let _aggregate: any[] = [];
+    const status = params.status ? JSON.parse(params.status) : [];
+
+    let statusCheck: any = {
+      $expr: {
+        $not: {
+          $in: [
+            '$status',
+            [QuoteStatusEnum.REQUESTED, QuoteStatusEnum.CANCELED],
+          ],
+        },
+      },
+    };
+
+    if (status.length) {
+      statusCheck = {
+        $expr: {
+          $and: [
+            {
+              $not: {
+                $in: [
+                  '$status',
+                  [QuoteStatusEnum.REQUESTED, QuoteStatusEnum.CANCELED],
+                ],
+              },
+            },
+            {
+              $in: ['$status', status],
+            },
+          ],
+        },
+      };
+    }
+
     let matchStage: any = {
       $match: {
         $or: [{ user_id: user_id }, { referral_id: user_id }],
-        $expr: {
-          $not: {
-            $in: [
-              '$status',
-              [QuoteStatusEnum.REQUESTED, QuoteStatusEnum.CANCELED],
-            ],
-          },
-        },
+        ...statusCheck,
       },
     };
 
@@ -387,23 +513,51 @@ export class QuoteService {
         $match: {
           referral_id: user_id,
           user_id: { $in: params.owner.split(',') },
+          ...statusCheck,
         },
       };
     }
 
-    if (params?.id) {
+    if (params.id) {
       matchStage = {
         $match: {
           _id: new Types.ObjectId(params.id),
           $or: [{ user_id: user_id }, { referral_id: user_id }],
+          ...statusCheck,
         },
       };
+    }
+
+    if (params?.type) {
+      _aggregate.push({
+        $match: {
+          type: params.type.toUpperCase(),
+        },
+      });
+    }
+
+    let sort: any = { updatedAt: -1 };
+
+    if (params.sort) {
+      // Check if params.sort is a string and can be parsed
+      if (typeof params.sort === 'string') {
+        try {
+          const sortObj = JSON.parse(params.sort);
+          if (sortObj && Object.keys(sortObj).length) {
+            sort = sortObj;
+          }
+        } catch (error) {
+          console.error('Invalid JSON in sort parameter:', error);
+        }
+      } else if (typeof params.sort === 'object') {
+        // If it's already an object, assign it directly
+        sort = params.sort;
+      }
     }
 
     _aggregate = [
       ..._aggregate,
       matchStage,
-      { $sort: { updatedAt: -1 } },
       {
         $project: {
           subscribers: 0,
@@ -434,6 +588,55 @@ export class QuoteService {
               $replaceRoot: { newRoot: '$addresses' },
             },
           ],
+        },
+      },
+      {
+        $addFields: {
+          // Adding the firstPickup field
+          firstPickup: {
+            $first: {
+              $filter: {
+                input: '$addresses',
+                as: 'address',
+                cond: {
+                  $and: [
+                    { $eq: ['$$address.address_type', 'pickup'] }, // Match address_type = 'pickup'
+                    { $eq: ['$$address.order', 1] }, // Match order = 1
+                  ],
+                },
+              },
+            },
+          },
+          // Adding the firstDrop field
+          firstDrop: {
+            $first: {
+              $filter: {
+                input: '$addresses',
+                as: 'address',
+                cond: {
+                  $and: [
+                    { $eq: ['$$address.address_type', 'drop'] }, // Match address_type = 'pickup'
+                    { $eq: ['$$address.order', 1] }, // Match order = 1
+                  ],
+                },
+              },
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          quote_id_str: { $toString: '$_id' },
+          'firstPickup.dateAsDate': {
+            $dateFromString: {
+              dateString: '$firstPickup.date', // Properly wrapping the date string in an object
+            },
+          },
+          'firstDrop.dateAsDate': {
+            $dateFromString: {
+              dateString: '$firstDrop.date', // Properly wrapping the date string in an object
+            },
+          },
         },
       },
       {
@@ -486,6 +689,13 @@ export class QuoteService {
         },
       },
       {
+        $addFields: {
+          total_cost: {
+            $multiply: ['$bid.amount', '$load_number'],
+          },
+        },
+      },
+      {
         $project: {
           'carrier.name': 0,
           'carrier.password': 0,
@@ -514,6 +724,18 @@ export class QuoteService {
           as: 'items',
         },
       },
+      {
+        $addFields: {
+          quote_id_short: {
+            $substrBytes: [
+              '$quote_id_str',
+              { $subtract: [{ $strLenBytes: '$quote_id_str' }, 7] },
+              7,
+            ],
+          },
+        },
+      },
+      { $sort: sort },
     ];
 
     if (params?.searchText) {
@@ -710,6 +932,12 @@ export class QuoteService {
         ])
         .exec()
     )[0];
+
+    if (bidData.quotes[0].status !== QuoteStatusEnum.REQUESTED) {
+      throw new BadRequestException(
+        'This shipment is already assigned with a quote!',
+      );
+    }
 
     return await this._quoteModel
       .updateOne(
@@ -916,6 +1144,16 @@ export class QuoteService {
     references: Array<string>,
     quote_id: string,
   ) {
+    const quote = await this._quoteModel
+      .findOne({ user_id, _id: quote_id })
+      .exec();
+
+    if (quote.status === QuoteStatusEnum.DELIVERED) {
+      throw new BadRequestException(
+        `It is not possible to edit load once its already delivered.`,
+      );
+    }
+
     return this._quoteModel.updateOne(
       {
         user_id: user_id,
@@ -932,10 +1170,24 @@ export class QuoteService {
       .findOne({ user_id, _id: quote_id })
       .exec();
 
-    if (quote.status != QuoteStatusEnum.BOOKED) {
+    if (
+      quote.status != QuoteStatusEnum.BOOKED &&
+      quote.status != QuoteStatusEnum.DELIVERED &&
+      quote.status != QuoteStatusEnum.REQUESTED
+    ) {
       throw new BadRequestException(
         `It is not possible to change carrier once the carrier is on its way.`,
       );
+    }
+
+    if (quote.status === QuoteStatusEnum.DELIVERED) {
+      throw new BadRequestException(
+        `It is not possible to change carrier once the load its already delivered.`,
+      );
+    }
+
+    if (quote.status === QuoteStatusEnum.REQUESTED) {
+      throw new BadRequestException(`This load dont have an assigned carrier.`);
     }
 
     return this._quoteModel.updateOne(
@@ -951,11 +1203,23 @@ export class QuoteService {
 
     if (
       quote.status != QuoteStatusEnum.BOOKED &&
-      quote.status != QuoteStatusEnum.REQUESTED
+      quote.status != QuoteStatusEnum.REQUESTED &&
+      quote.status != QuoteStatusEnum.CANCELED &&
+      quote.status != QuoteStatusEnum.DELIVERED
     ) {
       throw new BadRequestException(
         `It is not possible to cancel a load once the carrier is on its way.`,
       );
+    }
+
+    if (quote.status === QuoteStatusEnum.DELIVERED) {
+      throw new BadRequestException(
+        `It is not possible to cancel a load once it is already delivered.`,
+      );
+    }
+
+    if (quote.status === QuoteStatusEnum.CANCELED) {
+      throw new BadRequestException(`This load is already canceled.`);
     }
 
     return this._quoteModel
@@ -965,5 +1229,55 @@ export class QuoteService {
       )
       .exec()
       .then(() => this._notificationService.notifyCancelLoad(quote_id));
+  }
+
+  // This function is used on front to get data about the
+  // quote and find on which page it should be shown to user
+  async findQuoteStatus(user: User, quote_id: string) {
+    const quote = await (
+      await this._quoteModel
+        .aggregate([
+          {
+            $match: {
+              $or: [
+                { user_id: user._id },
+                { referral_id: user._id },
+                { subscribers: { $in: [user.email] } },
+              ],
+              _id: new ObjectId(quote_id),
+            },
+          },
+          {
+            $addFields: {
+              id_str1: { $toString: '$_id' },
+            },
+          },
+          {
+            $lookup: {
+              from: 'bids',
+              localField: 'id_str1',
+              foreignField: 'quote_id',
+              as: 'bids',
+            },
+          },
+          {
+            $project: {
+              status: 1,
+              bidCount: { $size: '$bids' },
+            },
+          },
+        ])
+        .exec()
+    )[0];
+
+    if (!quote) {
+      throw new BadRequestException('Nonexistent quote');
+    }
+
+    return {
+      quoteStatus: quote.status,
+      userRole: user.role,
+      bidsNumber: quote.bidCount,
+    };
   }
 }

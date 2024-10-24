@@ -231,6 +231,21 @@ export class QuoteCarrierService {
             {
               $replaceRoot: { newRoot: '$addresses' },
             },
+            {
+              $addFields: {
+                address: '$partial_address',
+              },
+            },
+            {
+              $project: {
+                address: 1,
+                date: 1,
+                address_type: 1,
+                shipping_hours: 1,
+                time_start: 1,
+                time_end: 1,
+              },
+            },
           ],
         },
       },

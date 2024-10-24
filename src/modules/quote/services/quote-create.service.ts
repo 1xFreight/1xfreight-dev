@@ -29,7 +29,9 @@ export class QuoteCreateService {
     const { pickup, drop, shipment_details, review, subscribers, equipments } =
       quote;
 
-    const onlyAddress = [...pickup, ...drop].map(({ address }) => address);
+    const onlyAddress = [...pickup, ...drop].map(
+      ({ city, state, country }) => city + ', ' + state + ', ' + country,
+    );
     const total_miles =
       await this._addressService.calcAddressesDistance(onlyAddress);
 
@@ -195,9 +197,11 @@ export class QuoteCreateService {
       })
     ).save();
 
-    newAddresses.map((address) => {
-      this._addressService.create({ ...address, quote_id });
-    });
+    await Promise.all(
+      newAddresses.map(async (address) => {
+        return this._addressService.create({ ...address, quote_id });
+      }),
+    ).then(() => this._notificationService.notifyNewQuote(quote_id.toString()));
 
     if (originalQuote[0].items?.length) {
       originalQuote[0].items.map((item) =>

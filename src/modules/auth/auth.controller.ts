@@ -2,16 +2,11 @@ import {
   BadRequestException,
   Body,
   Controller,
-  Get,
   Post,
   Req,
   Res,
-  UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { MagicLoginStrategy } from './strategy/magiclogin.strategy';
-import { PasswordLessLoginDto } from './dto/passwordless-login.dto';
-import { AuthGuard } from '@nestjs/passport';
 import { PasswordLoginDto } from './dto/password-login.dto';
 import { cookieConfig } from '../common/config/cookie-config.const';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -20,15 +15,16 @@ import { User } from '../user/decorators/user.decorator';
 
 @Controller('auth')
 export class AuthController {
-  constructor(
-    private readonly _authService: AuthService,
-    private strategy: MagicLoginStrategy,
-  ) {}
+  constructor(private readonly _authService: AuthService) {}
 
-  @Post('/login')
-  async login(@Req() req, @Res() res, @Body() body: PasswordLessLoginDto) {
-    await this._authService.validateUser(body.destination);
-    return this.strategy.send(req, res);
+  @Post('/login-email')
+  async loginEmail(
+    @Req() req,
+    @Res({ passthrough: true }) res,
+    @Body() body: { email: string },
+  ) {
+    await this._authService.validateUser(body.email);
+    return await this._authService.sendUserLoginEmail(body.email);
   }
 
   @Post('/login-pass')
@@ -56,12 +52,6 @@ export class AuthController {
     } catch (e) {
       return e.errmsg;
     }
-  }
-
-  @UseGuards(AuthGuard('magiclogin'))
-  @Get('login/callback')
-  callback(@Req() req) {
-    return this._authService.generateTokens(req.user);
   }
 
   @Auth()
@@ -96,6 +86,7 @@ export class AuthController {
     if (isTokenValid) {
       const newToken = await this._authService.generateTokens(isTokenValid);
       res.cookie('accessToken', newToken, cookieConfig);
+      this._authService.markTokenAsUsed(body.accessToken);
       return true;
     }
 

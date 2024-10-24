@@ -11,7 +11,7 @@ import { AuthService } from '../auth/auth.service';
 import * as process from 'process';
 import { shortAddress } from '../common/utils/address.utils';
 import { Carrier, CarrierDocument } from '../carrier/entitites/carrier.entity';
-import { chatDateFormat } from '../common/utils/date.util';
+import { chatDateFormat, formatDate } from '../common/utils/date.util';
 import { formatBytes } from '../common/utils/file.utils';
 import { Notification, NotificationDocument } from './notification.entity';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -32,7 +32,10 @@ export class NotificationsService {
   ) {}
 
   async getUserNotifications(user_id: string) {
-    return this._notificationModel.find({ user_id }).exec();
+    return this._notificationModel
+      .find({ user_id })
+      .sort({ createdAt: -1 })
+      .exec();
   }
 
   async clearAllUserNotifications(user_id: string) {
@@ -147,6 +150,7 @@ export class NotificationsService {
               'addresses.date': 1,
               'addresses.time_start': 1,
               'addresses.time_end': 1,
+              'addresses.partial_address': 1,
               'items.handling_unit': 1,
               'items.quantity': 1,
               'items.length': 1,
@@ -246,14 +250,18 @@ export class NotificationsService {
       ({ address_type }) => address_type === 'drop',
     );
 
-    const pickupFirstAddress = pickup.filter(({ order }) => order == 1)[0];
-    const dropLastAddress = drop.filter(({ order }) => order == drop.length)[0];
-
     const formattedPickupAddresses = pickup.map(
-      ({ order, address, date, time_start, time_end, shipping_hours }) => {
+      ({
+        order,
+        partial_address,
+        date,
+        time_start,
+        time_end,
+        shipping_hours,
+      }) => {
         return {
           order,
-          address: shortAddress(address),
+          address: partial_address,
           date,
           time_start,
           time_end,
@@ -263,10 +271,17 @@ export class NotificationsService {
     );
 
     const formattedDropAddresses = drop.map(
-      ({ order, address, date, time_start, time_end, shipping_hours }) => {
+      ({
+        order,
+        partial_address,
+        date,
+        time_start,
+        time_end,
+        shipping_hours,
+      }) => {
         return {
           order,
-          address: shortAddress(address),
+          address: partial_address,
           date,
           time_start,
           time_end,
@@ -275,12 +290,28 @@ export class NotificationsService {
       },
     );
 
+    const pickupFirstAddress = formattedPickupAddresses.filter(
+      ({ order }) => order == 1,
+    )[0];
+    const dropLastAddress = formattedDropAddresses.filter(
+      ({ order }) => order == drop.length,
+    )[0];
+
+    const url = process.env.URL;
+
     if (roomSubscribedUsers) {
       roomSubscribedUsers.map(async ({ email, _id }) => {
         if (!email) return;
 
+        const subscriberUser = await this.userModel.findOne({ email }).exec();
+
+        const accessToken = this._authService.generateTokens(
+          subscriberUser,
+          21600, // Access token will be valid 6h
+        );
+
         const htmlQuoteDetails = {
-          route: `from ${shortAddress(pickupFirstAddress.address)} to ${shortAddress(dropLastAddress.address)}`,
+          route: `from ${pickupFirstAddress.address} to ${dropLastAddress.address}`,
           id: quote_id
             .substring(quote_id.length - 7, quote_id.length)
             .toUpperCase(),
@@ -307,23 +338,23 @@ export class NotificationsService {
             documentSize: message.documentSize
               ? formatBytes(message.documentSize)
               : null,
-            viewChat: 'test',
+            viewChat: url + `/goto/${room}?token=${accessToken}`,
           },
         );
 
         this._emailService.sendMail(
           `${localCarrierName ?? messageAuthor.name} <hello@1xfreight.com>`,
           email,
-          `New chat message about route: ${htmlQuoteDetails.route}`,
+          `New Chat Message about: ${pickupFirstAddress.address} to ${dropLastAddress.address} [${htmlQuoteDetails.id}]`,
           '',
           html,
         );
 
         const notification = await this._notificationModel.create({
           user_id: _id,
-          text: `New chat message about route: ${htmlQuoteDetails.route}`,
+          text: `New Chat Message from ${localCarrierName ?? messageAuthor.name} about: ${pickupFirstAddress.address} to ${dropLastAddress.address} [${htmlQuoteDetails.id}]`,
           button_name: 'view chat',
-          button_link: 'find chat ',
+          button_link: `/goto/${room}`,
         });
 
         this.eventEmitter.emit('new-notification', {
@@ -432,6 +463,7 @@ export class NotificationsService {
               'addresses.date': 1,
               'addresses.time_start': 1,
               'addresses.time_end': 1,
+              'addresses.partial_address': 1,
               'items.handling_unit': 1,
               'items.quantity': 1,
               'items.length': 1,
@@ -485,14 +517,18 @@ export class NotificationsService {
       ({ address_type }) => address_type === 'drop',
     );
 
-    const pickupFirstAddress = pickup.filter(({ order }) => order == 1)[0];
-    const dropLastAddress = drop.filter(({ order }) => order == drop.length)[0];
-
     const formattedPickupAddresses = pickup.map(
-      ({ order, address, date, time_start, time_end, shipping_hours }) => {
+      ({
+        order,
+        partial_address,
+        date,
+        time_start,
+        time_end,
+        shipping_hours,
+      }) => {
         return {
           order,
-          address: shortAddress(address),
+          address: partial_address,
           date,
           time_start,
           time_end,
@@ -502,10 +538,17 @@ export class NotificationsService {
     );
 
     const formattedDropAddresses = drop.map(
-      ({ order, address, date, time_start, time_end, shipping_hours }) => {
+      ({
+        order,
+        partial_address,
+        date,
+        time_start,
+        time_end,
+        shipping_hours,
+      }) => {
         return {
           order,
-          address: shortAddress(address),
+          address: partial_address,
           date,
           time_start,
           time_end,
@@ -514,6 +557,12 @@ export class NotificationsService {
       },
     );
 
+    const pickupFirstAddress = formattedPickupAddresses.filter(
+      ({ order }) => order == 1,
+    )[0];
+    const dropLastAddress = formattedDropAddresses.filter(
+      ({ order }) => order == drop.length,
+    )[0];
     const url = process.env.URL;
 
     quote.subscribers.map(async (subscriberEmail) => {
@@ -527,9 +576,7 @@ export class NotificationsService {
       );
       const isUserTeamMember = teamMembers.includes(subscriberEmail);
 
-      const viewQuoteLink = isUserTeamMember
-        ? url + `/quotes/view/${quote_id}?token=${accessToken}`
-        : url + `/available-quotes/${quote_id}?token=${accessToken}`;
+      const viewQuoteLink = `${url}/goto/${quote_id}?token=${accessToken}`;
 
       let declineUrl = null;
 
@@ -539,7 +586,7 @@ export class NotificationsService {
       }
 
       const htmlQuoteDetails = {
-        route: `from ${shortAddress(pickupFirstAddress.address)} to ${shortAddress(dropLastAddress.address)}`,
+        route: `from ${pickupFirstAddress.address} to ${dropLastAddress.address}`,
         id: quote_id
           .substring(quote_id.length - 7, quote_id.length)
           .toUpperCase(),
@@ -559,10 +606,9 @@ export class NotificationsService {
         this._emailService.generateQuoteEmailHTML(htmlQuoteDetails);
 
       await this._emailService.sendMail(
-        // `${quoteAuthor.name} <${quoteAuthor.email}>`,
         `${quoteAuthor.name} <hello@1xfreight.com>`,
         subscriberEmail,
-        `New ${quote.type} Quote: ${shortAddress(pickupFirstAddress.address)} to ${shortAddress(dropLastAddress.address)} [${quote_id.substring(quote_id.length - 7, quote_id.length).toUpperCase()}]`,
+        `New ${quote.type} Quote: ${pickupFirstAddress.address} to ${dropLastAddress.address} [${htmlQuoteDetails.id}]`,
         '',
         htmlNew,
       );
@@ -673,6 +719,7 @@ export class NotificationsService {
               'addresses.date': 1,
               'addresses.time_start': 1,
               'addresses.time_end': 1,
+              'addresses.partial_address': 1,
               'items.handling_unit': 1,
               'items.quantity': 1,
               'items.length': 1,
@@ -719,14 +766,18 @@ export class NotificationsService {
       ({ address_type }) => address_type === 'drop',
     );
 
-    const pickupFirstAddress = pickup.filter(({ order }) => order == 1)[0];
-    const dropLastAddress = drop.filter(({ order }) => order == drop.length)[0];
-
     const formattedPickupAddresses = pickup.map(
-      ({ order, address, date, time_start, time_end, shipping_hours }) => {
+      ({
+        order,
+        partial_address,
+        date,
+        time_start,
+        time_end,
+        shipping_hours,
+      }) => {
         return {
           order,
-          address: shortAddress(address),
+          address: partial_address,
           date,
           time_start,
           time_end,
@@ -736,10 +787,17 @@ export class NotificationsService {
     );
 
     const formattedDropAddresses = drop.map(
-      ({ order, address, date, time_start, time_end, shipping_hours }) => {
+      ({
+        order,
+        partial_address,
+        date,
+        time_start,
+        time_end,
+        shipping_hours,
+      }) => {
         return {
           order,
-          address: shortAddress(address),
+          address: partial_address,
           date,
           time_start,
           time_end,
@@ -748,8 +806,15 @@ export class NotificationsService {
       },
     );
 
+    const pickupFirstAddress = formattedPickupAddresses.filter(
+      ({ order }) => order == 1,
+    )[0];
+    const dropLastAddress = formattedDropAddresses.filter(
+      ({ order }) => order == drop.length,
+    )[0];
+
     const htmlQuoteDetails = {
-      route: `from ${shortAddress(pickupFirstAddress.address)} to ${shortAddress(dropLastAddress.address)}`,
+      route: `from ${pickupFirstAddress.address} to ${dropLastAddress.address}`,
       id: quote_id
         .substring(quote_id.length - 7, quote_id.length)
         .toUpperCase(),
@@ -792,7 +857,7 @@ export class NotificationsService {
       user_id: quoteAuthorUserId,
       text: `${localCarrierData.name} updated quote status to [${newStatus}] : ${shortAddress(pickupFirstAddress.address)} to ${shortAddress(dropLastAddress.address)}, [${quote_id.substring(quote_id.length - 7, quote_id.length).toUpperCase()}]`,
       button_name: 'view quote',
-      button_link: `${url}/shipments/${quote_id}`,
+      button_link: `${url}/goto/${quote_id}`,
     });
 
     this.eventEmitter.emit('new-notification', {
@@ -899,6 +964,7 @@ export class NotificationsService {
               'addresses.date': 1,
               'addresses.time_start': 1,
               'addresses.time_end': 1,
+              'addresses.partial_address': 1,
               'items.handling_unit': 1,
               'items.quantity': 1,
               'items.length': 1,
@@ -940,14 +1006,18 @@ export class NotificationsService {
       ({ address_type }) => address_type === 'drop',
     );
 
-    const pickupFirstAddress = pickup.filter(({ order }) => order == 1)[0];
-    const dropLastAddress = drop.filter(({ order }) => order == drop.length)[0];
-
     const formattedPickupAddresses = pickup.map(
-      ({ order, address, date, time_start, time_end, shipping_hours }) => {
+      ({
+        order,
+        partial_address,
+        date,
+        time_start,
+        time_end,
+        shipping_hours,
+      }) => {
         return {
           order,
-          address: shortAddress(address),
+          address: partial_address,
           date,
           time_start,
           time_end,
@@ -957,10 +1027,17 @@ export class NotificationsService {
     );
 
     const formattedDropAddresses = drop.map(
-      ({ order, address, date, time_start, time_end, shipping_hours }) => {
+      ({
+        order,
+        partial_address,
+        date,
+        time_start,
+        time_end,
+        shipping_hours,
+      }) => {
         return {
           order,
-          address: shortAddress(address),
+          address: partial_address,
           date,
           time_start,
           time_end,
@@ -969,8 +1046,15 @@ export class NotificationsService {
       },
     );
 
+    const pickupFirstAddress = formattedPickupAddresses.filter(
+      ({ order }) => order == 1,
+    )[0];
+    const dropLastAddress = formattedDropAddresses.filter(
+      ({ order }) => order == drop.length,
+    )[0];
+
     // If quote have already chosen carrier then we notify only carrier ,
-    // if quote awaiting quotes from carriers then we notify all subscribers users
+    // if quote awaiting quotes from carriers then we notify all subscribed users
 
     let notifyUsersList = [...quote.subscribers];
 
@@ -988,7 +1072,7 @@ export class NotificationsService {
         .exec();
 
       const htmlQuoteDetails = {
-        route: `from ${shortAddress(pickupFirstAddress.address)} to ${shortAddress(dropLastAddress.address)}`,
+        route: `from ${pickupFirstAddress.address} to ${dropLastAddress.address}`,
         id: quote_id
           .substring(quote_id.length - 7, quote_id.length)
           .toUpperCase(),
@@ -1023,6 +1107,292 @@ export class NotificationsService {
         room: subscriberUser._id,
         data: notification,
       });
+    });
+  }
+
+  async notifyNewQuoteFromCarrier(
+    user_id: string,
+    quote_id: string,
+    bid_id: string,
+  ) {
+    const quote = (
+      await this._quoteModel
+        .aggregate([
+          {
+            $match: {
+              _id: new ObjectId(quote_id),
+            },
+          },
+          {
+            $lookup: {
+              from: 'addresses',
+              localField: '_id',
+              foreignField: 'quote_id',
+              as: 'addresses',
+            },
+          },
+          {
+            $lookup: {
+              from: 'shipments',
+              localField: '_id',
+              foreignField: 'quote_id',
+              as: 'details',
+            },
+          },
+          {
+            $addFields: {
+              quote_id_str: { $toString: '$_id' },
+              user_id_obj: { $toObjectId: '$user_id' },
+              details: { $arrayElemAt: ['$details', 0] },
+            },
+          },
+          {
+            $addFields: {
+              'details.goods_value': {
+                $concat: [
+                  { $toString: '$details.goods_value' },
+                  ' ',
+                  '$currency',
+                ],
+              },
+              'details.weight': {
+                $concat: [
+                  { $toString: '$details.weight' },
+                  ' ',
+                  '$details.weight_unit',
+                ],
+              },
+
+              deadline_date: {
+                $concat: [
+                  {
+                    $dateToString: {
+                      format: '%B %d, %Y', // Format: "Month Day, Year" (e.g., "September 25, 2024")
+                      date: '$deadline_date',
+                      timezone: 'UTC', // Adjust timezone as necessary
+                    },
+                  },
+                  ' ',
+                  '$deadline_time',
+                ],
+              },
+            },
+          },
+          {
+            $lookup: {
+              from: 'items',
+              localField: 'quote_id_str',
+              foreignField: 'quote_id',
+              as: 'items',
+            },
+          },
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'user_id_obj',
+              foreignField: '_id',
+              as: 'quote_author',
+            },
+          },
+          {
+            $limit: 1,
+          },
+          {
+            $project: {
+              type: 1,
+              weight: 1,
+              quote_type: 1,
+              deadline_date: 1,
+              total_miles: 1,
+              load_number: 1,
+              'addresses.address': 1,
+              'addresses.address_type': 1,
+              'addresses.order': 1,
+              'addresses.shipping_hours': 1,
+              'addresses.date': 1,
+              'addresses.time_start': 1,
+              'addresses.time_end': 1,
+              'addresses.partial_address': 1,
+              'items.handling_unit': 1,
+              'items.quantity': 1,
+              'items.length': 1,
+              'items.height': 1,
+              'items.width': 1,
+              'items.freight_class': 1,
+              'items.weight': 1,
+              'items.sub_class': 1,
+              'items.nmfc': 1,
+              'items.commodity': 1,
+              'items.stackable': 1,
+              'details.quantity': 1,
+              'details.commodity': 1,
+              'details.goods_value': 1,
+              'details.weight': 1,
+              'details.equipments': 1,
+              quote_author: 1,
+              subscribers: 1,
+              equipments: 1,
+              status: 1,
+              bid_id: 1,
+              carrier_id: 1,
+              user_id: 1,
+              currency: 1,
+            },
+          },
+        ])
+        .exec()
+    )[0];
+
+    const bid = await (
+      await this._bidModel
+        .aggregate([
+          {
+            $match: {
+              user_id,
+              _id: new ObjectId(bid_id),
+              quote_id,
+            },
+          },
+          {
+            $addFields: {
+              user_id_obj: new ObjectId(user_id),
+            },
+          },
+          {
+            $lookup: {
+              from: 'users',
+              foreignField: '_id',
+              localField: 'user_id_obj',
+              as: 'user',
+            },
+          },
+          {
+            $addFields: {
+              user: { $arrayElemAt: ['$user', 0] },
+            },
+          },
+        ])
+        .exec()
+    )[0];
+
+    const localCarrierData = await this._carrierModel
+      .findOne({
+        user_id: quote.user_id,
+        email: bid.user.email,
+      })
+      .exec();
+
+    const quoteDetails = { ...quote.details, ...quote };
+    const items = quote.items || [];
+    const quoteAuthor = quote.quote_author[0];
+
+    const pickup = quote.addresses.filter(
+      ({ address_type }) => address_type === 'pickup',
+    );
+
+    const drop = quote.addresses.filter(
+      ({ address_type }) => address_type === 'drop',
+    );
+
+    const formattedPickupAddresses = pickup.map(
+      ({
+        order,
+        partial_address,
+        date,
+        time_start,
+        time_end,
+        shipping_hours,
+      }) => {
+        return {
+          order,
+          address: partial_address,
+          date,
+          time_start,
+          time_end,
+          shipping_hours,
+        };
+      },
+    );
+
+    const formattedDropAddresses = drop.map(
+      ({
+        order,
+        partial_address,
+        date,
+        time_start,
+        time_end,
+        shipping_hours,
+      }) => {
+        return {
+          order,
+          address: partial_address,
+          date,
+          time_start,
+          time_end,
+          shipping_hours,
+        };
+      },
+    );
+
+    const pickupFirstAddress = formattedPickupAddresses.filter(
+      ({ order }) => order == 1,
+    )[0];
+    const dropLastAddress = formattedDropAddresses.filter(
+      ({ order }) => order == drop.length,
+    )[0];
+
+    const url = process.env.URL;
+
+    const accessToken = this._authService.generateTokens(
+      quoteAuthor,
+      21600, // Access token will be valid 6h
+    );
+
+    const htmlQuoteDetails = {
+      route: `from ${pickupFirstAddress.address} to ${dropLastAddress.address}`,
+      id: quote_id
+        .substring(quote_id.length - 7, quote_id.length)
+        .toUpperCase(),
+      type: quote.type,
+      equipments: quote.equipments,
+      pickup: formattedPickupAddresses,
+      drop: formattedDropAddresses,
+      commodity: quote.details.commodity,
+      author: quoteAuthor.name,
+      weight: quoteDetails.weight,
+      status: quote.status,
+      viewUrl: `${url}/goto/${quote_id}?token=${accessToken}`,
+      newBid: {
+        amount: bid.amount + ' ' + quote.currency,
+        validUntil: formatDate(bid.valid_until),
+        transitTime: bid.transit_time + ' days',
+        bidAuthor: localCarrierData.name,
+        estPerMile:
+          (bid.amount / quote.total_miles).toFixed(2) + ' ' + quote.currency,
+        notes: bid.notes,
+      },
+    };
+
+    const htmlNew = this._emailService.generateQuoteEmailHTML(htmlQuoteDetails);
+
+    await this._emailService.sendMail(
+      `${localCarrierData.name} <hello@1xFreight.com>`,
+      quoteAuthor.email,
+      `${localCarrierData.name} send you a quote: ${pickupFirstAddress.address} to ${dropLastAddress.address} [${quote_id.substring(quote_id.length - 7, quote_id.length).toUpperCase()}]`,
+      '',
+      htmlNew,
+    );
+
+    const notification = await this._notificationModel.create({
+      user_id: quoteAuthor._id,
+      text: `Send you a quote : ${pickupFirstAddress.address} to ${dropLastAddress.address}, [${quote_id.substring(quote_id.length - 7, quote_id.length).toUpperCase()}]`,
+      button_name: `view quote`,
+      button_link: `/goto/${quote_id}`,
+    });
+
+    this.eventEmitter.emit('new-notification', {
+      room: quoteAuthor._id,
+      data: notification,
     });
   }
 }

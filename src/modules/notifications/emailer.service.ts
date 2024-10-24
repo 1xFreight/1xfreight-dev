@@ -91,7 +91,7 @@ ${
    <div style="font-size: 16px; color: black; font-weight: 500; margin-top: 0px;">
   ${statusUpdate.carrierName} <span style="float:right; opacity: 0.5"> ${statusUpdate.notificationTime ? formatDateTime(statusUpdate.notificationTime) : ''}</span>
 </div> 
-  <div style="font-size: 16px; color: black; font-weight: 400; margin-top: -5px;">
+  <div style="font-size: 16px; color: black; font-weight: 400; margin-top: 0px;">
   <span style="opacity: 0.35">${statusUpdate.oldStatus ? 'changed quote status' : 'carrier arrived at location'} </span>
 </div> 
 
@@ -127,8 +127,36 @@ ${
         : ''
     }
     
-    ${quote.status == QuoteStatusEnum.CANCELED ? ` <p>This shipment was canceled by ${quote.author}.</p>` : ''}
+    ${quote.status == QuoteStatusEnum.CANCELED ? ` <p>This shipment was canceled.</p>` : ''}
     
+    
+    ${
+      quote.newBid
+        ? `<div style="margin-top: 0px; margin-bottom: 5px">
+  <span style="font-size: 16px; color: black; font-weight: 500;">${quote.newBid.bidAuthor}</span> send you a quote:
+  
+  <div style="margin-bottom: 5px;font-size: 14px; display: block; margin-top: 5px;">
+     <strong style="margin:0; white-space: nowrap">Per load: </strong> <span style="color: #0020DD">${quote.newBid.amount}</span>
+    </div>
+  
+   <div style="margin-bottom: 5px;font-size: 14px; display: block; ">
+     <strong style="margin:0; white-space: nowrap">Valid until: </strong> ${quote.newBid.validUntil}
+    </div>
+  
+  <div style="margin-bottom: 5px;font-size: 14px; display: block; ">
+     <strong style="margin:0; white-space: nowrap">Transit time: </strong> ${quote.newBid.transitTime}
+    </div>
+  
+  <div style="margin-bottom: 5px;font-size: 14px; display: block; ">
+     <strong style="margin:0; white-space: nowrap">Estimated per mile: </strong> ${quote.newBid.estPerMile}
+    </div>
+    
+    <div style="margin-bottom: 5px;font-size: 14px; display: block; ">
+     <strong style="margin:0; white-space: nowrap">Notes: </strong> ${quote.newBid.notes}
+    </div>
+</div>`
+        : ''
+    }
     
     <div style="display: flex; width: 100%; position: relative;text-align: left">
     <h1 style="color: #0020DD; font-size: 22px; font-weight: 600; margin-bottom: 0;max-width: 85%; width: 100%">${quote.author}</h1>
@@ -264,5 +292,88 @@ ${
 </body>
 </html>
 `;
+  }
+
+  generateLoginEmail(authLink: string) {
+    return `<!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+      <style>
+        body {
+      font-family: Arial, sans-serif;
+      font-size: 16px;
+      color: #4a4a4a;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+    }
+  .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background-color: #ffffff;
+      padding: 20px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+  .header {
+      text-align: center;
+      padding: 20px 0;
+    }
+  .header h1 {
+      font-size: 24px;
+      color: #333;
+      margin: 0;
+    }
+  .content {
+      text-align: center;
+      margin-top: 20px;
+
+    }
+  .content a {
+      width: 300px;
+      color: white;
+    }
+  .login-btn {
+      display: inline-block;
+      background-color: #4e63e9;
+      color: white;
+      padding: 12px 24px;
+      font-size: 18px;
+      border-radius: 5px;
+      text-decoration: none;
+    }
+  .footer {
+      text-align: center;
+      margin-top: 30px;
+      color: #aaa;
+      font-size: 12px;
+    }
+  .footer p {
+      margin: 0;
+    }
+  @media screen and (max-width: 600px) {
+    .container {
+        width: 100%;
+        padding: 10px;
+      }
+    }
+    </style>
+    </head>
+    <body>
+    <div class="container">
+    <div class="header">
+    <img src="https://i.ibb.co/MDFxnxr/1xfreight-logo.png" alt="1xfreight-logo" border="0" width="200">
+      </div>
+      <div class="content">
+    <a href="${authLink}" class="login-btn">Log In</a>
+    </div>
+    <div class="footer">
+      <p>&copy; 2024 1xFreight.com  All rights reserved.</p>
+    </div>
+    </div>
+    </body>
+    </html>`;
   }
 }

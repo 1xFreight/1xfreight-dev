@@ -56,6 +56,36 @@ export class Address {
 
   @Prop()
   arrival_status: string;
+
+  @Prop()
+  street: string;
+
+  @Prop()
+  city: string;
+
+  @Prop()
+  state: string;
+
+  @Prop()
+  zipcode: string;
+
+  @Prop()
+  country: string;
+
+  @Prop()
+  company_name: string;
+
+  @Prop()
+  contact_name: string;
+
+  @Prop()
+  contact_phone: string;
+
+  @Prop()
+  contact_email: string;
+
+  @Prop()
+  partial_address: string;
 }
 
 export const AddressSchema = SchemaFactory.createForClass(Address);

@@ -9,6 +9,7 @@ import { BidService } from '../../bid/bid.service';
 import { AddressService } from '../../address/address.service';
 import { QuoteCreateService } from '../services/quote-create.service';
 import { QuoteEnum } from '../../common/enums/quote.enum';
+import { UserController } from '../../user/user.controller';
 
 @Controller('quote')
 export class QuoteController {
@@ -24,10 +25,7 @@ export class QuoteController {
   async myQuotes(@User() user, @Query() params: PaginationWithFilters) {
     console.log(params);
 
-    return this._quoteService.getUserQuotes(user, {
-      ...params,
-      // sortBy: `{ "createdAt":-1 }`,
-    });
+    return this._quoteService.getUserQuotes(user, params);
   }
   @Auth()
   @Get('/shipments')
@@ -160,5 +158,17 @@ export class QuoteController {
       body,
       user?.referral_id,
     );
+  }
+
+  @Auth()
+  @Roles([
+    UserRolesEnum.SHIPPER,
+    UserRolesEnum.SHIPPER_DEMO,
+    UserRolesEnum.SHIPPER_MEMBER,
+    UserRolesEnum.CARRIER,
+  ])
+  @Get('/quote-status/:quote_id')
+  async getQuoteStatus(@User() user, @Param('quote_id') quote_id) {
+    return this._quoteService.findQuoteStatus(user, quote_id);
   }
 }

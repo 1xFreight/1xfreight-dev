@@ -52,4 +52,9 @@ export class BidController {
       body.amount,
     ));
   }
+
+  @Get('/test')
+  async testIt() {
+    return this._bidService.testIt();
+  }
 }

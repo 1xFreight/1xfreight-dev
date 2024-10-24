@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { EmailService } from './emailer.service';
 import { NotificationsController } from './notifications.controller';
 import { MongooseModule } from '@nestjs/mongoose';
@@ -8,9 +8,12 @@ import { NotificationsService } from './notifications.service';
 import { NotificationGateway } from './notification.gateway';
 
 @Module({
-  imports: [MongooseModule.forFeature(forFeatureDb), AuthModule],
+  imports: [
+    MongooseModule.forFeature(forFeatureDb),
+    forwardRef(() => AuthModule),
+  ],
   providers: [EmailService, NotificationsService, NotificationGateway],
   controllers: [NotificationsController],
-  exports: [NotificationsService],
+  exports: [NotificationsService, EmailService],
 })
 export class NotificationsModule {}

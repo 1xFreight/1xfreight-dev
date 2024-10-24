@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { MagicLoginStrategy } from './strategy/magiclogin.strategy';
@@ -7,6 +7,7 @@ import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import * as process from 'process';
 import { JwtStrategy } from './strategy/jwt.strategy';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { JwtStrategy } from './strategy/jwt.strategy';
         expiresIn: '1h',
       },
     }),
+    forwardRef(() => NotificationsModule),
   ],
   providers: [AuthService, MagicLoginStrategy, JwtStrategy],
   controllers: [AuthController],

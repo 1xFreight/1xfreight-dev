@@ -8,13 +8,37 @@ import { JwtService } from '@nestjs/jwt';
 import { User } from '../user/entities/user.entity';
 import * as process from 'process';
 import * as bcrypt from 'bcrypt';
+import { EmailService } from '../notifications/emailer.service';
+import { shortAddress } from '../common/utils/address.utils';
 
 @Injectable()
 export class AuthService {
+  private usedTokens: Set<string> = new Set();
+  private readonly MAX_TOKENS = 50000; // Max number of tokens to keep in memory
+  private readonly CLEANUP_COUNT = 25000; // Number of tokens to remove during cleanup
+
   constructor(
     private readonly _userService: UserService,
     private _jwtService: JwtService,
+    private _emailService: EmailService,
   ) {}
+
+  async sendUserLoginEmail(userEmail: string) {
+    const user = await this._userService.findOneByEmail(userEmail);
+    const authToken = this.generateTokens(user, 7200); // expire in 2 hours
+    const authLink = `${process.env.URL}/?token=${authToken}`;
+    const htmlEmail = this._emailService.generateLoginEmail(authLink);
+
+    await this._emailService.sendMail(
+      `1xFreight <hello@1xfreight.com>`,
+      userEmail,
+      `Login to 1xFreight`,
+      '',
+      htmlEmail,
+    );
+
+    return true;
+  }
 
   generateTokens(user: User, expiresIn = 432000) {
     const payload = {
@@ -89,9 +113,32 @@ export class AuthService {
   }
 
   async verifyToken(token: string) {
-    if (this._jwtService.verify(token, { secret: process.env.JWT_SECRET }))
+    if (this.usedTokens.has(token)) {
+      throw new BadRequestException('Token has already been used');
+    }
+
+    if (this._jwtService.verify(token, { secret: process.env.JWT_SECRET })) {
+      this.cleanupTokensIfNecessary();
       return this._jwtService.decode(token);
+    }
 
     return false;
+  }
+
+  markTokenAsUsed(token: string) {
+    this.usedTokens.add(token);
+    return true;
+  }
+
+  private cleanupTokensIfNecessary() {
+    if (this.usedTokens.size > this.MAX_TOKENS) {
+      // Remove the oldest tokens
+      let count = 0;
+      for (const token of this.usedTokens) {
+        if (count >= this.CLEANUP_COUNT) break;
+        this.usedTokens.delete(token);
+        count++;
+      }
+    }
   }
 }

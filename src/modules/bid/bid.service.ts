@@ -3,15 +3,25 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Bid, BidDocument } from './bid.entity';
 import { Model } from 'mongoose';
 import { ObjectId } from 'mongodb';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class BidService {
   constructor(
     @InjectModel(Bid.name) private readonly _bidModel: Model<BidDocument>,
+    private readonly _notificationService: NotificationsService,
   ) {}
 
   async create(bid: Partial<Bid>) {
-    return (await this._bidModel.create(bid)).save();
+    const savedBid = await (await this._bidModel.create(bid)).save();
+
+    this._notificationService.notifyNewQuoteFromCarrier(
+      bid.user_id,
+      bid.quote_id,
+      savedBid._id.toString(),
+    );
+
+    return savedBid;
   }
 
   async declineBid(user_id: string, quote_id: string) {
@@ -40,5 +50,13 @@ export class BidService {
 
   async updateBidAmount(user_id: string, quote_id: string, amount: number) {
     return this._bidModel.updateOne({ user_id, quote_id }, { amount }).exec();
+  }
+
+  async testIt() {
+    this._notificationService.notifyNewQuoteFromCarrier(
+      '66bb96869803a4590729d796',
+      '670e82e63381f5a58aa50363',
+      '670e83133381f5a58aa5037e',
+    );
   }
 }

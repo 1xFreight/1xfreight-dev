@@ -22,7 +22,17 @@ export class AddressService {
   }
 
   async create(address: Partial<Address>) {
-    return (await this._addressModel.create(address)).save();
+    const _address = address;
+
+    if (_address.state && _address.city && _address.country) {
+      address['partial_address'] =
+        `${_address.city}, ${_address.zipcode ? _address.zipcode + ', ' : ''}${_address.state === _address.city ? '' : _address.state + ', '}${_address.country}`;
+    }
+
+    address['address'] =
+      `${_address.street ? _address.street + ', ' : ''}${_address.zipcode ? _address.zipcode + ', ' : ''}${_address.city ? _address.city + ', ' : ''}${_address.state ? _address.state + ', ' : ''}${_address.country}`;
+
+    return (await this._addressModel.create(_address)).save();
   }
 
   async findByQuote(quote_id: string) {
