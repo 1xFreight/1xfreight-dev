@@ -30,6 +30,9 @@ export class CarrierService {
         },
       },
       {
+        $sort: { updatedAt: -1 },
+      },
+      {
         $lookup: {
           from: 'spotgroups',
           let: { carrierId: { $toString: '$_id' } },
@@ -312,6 +315,9 @@ export class CarrierService {
     const _aggregate: any = [
       {
         $match: { user_id },
+      },
+      {
+        $sort: { updatedAt: -1 },
       },
     ];
 

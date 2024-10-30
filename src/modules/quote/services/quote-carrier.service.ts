@@ -244,6 +244,8 @@ export class QuoteCarrierService {
                 shipping_hours: 1,
                 time_start: 1,
                 time_end: 1,
+                notes: 1,
+                accessorials: 1,
               },
             },
           ],
@@ -297,6 +299,7 @@ export class QuoteCarrierService {
       {
         $project: {
           user_id_obj: 0,
+          references: 0,
         },
       },
     ];

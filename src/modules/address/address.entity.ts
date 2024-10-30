@@ -86,6 +86,9 @@ export class Address {
 
   @Prop()
   partial_address: string;
+
+  @Prop()
+  open_hours: string;
 }
 
 export const AddressSchema = SchemaFactory.createForClass(Address);

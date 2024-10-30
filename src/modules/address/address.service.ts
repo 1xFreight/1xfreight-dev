@@ -26,7 +26,7 @@ export class AddressService {
 
     if (_address.state && _address.city && _address.country) {
       address['partial_address'] =
-        `${_address.city}, ${_address.zipcode ? _address.zipcode + ', ' : ''}${_address.state === _address.city ? '' : _address.state + ', '}${_address.country}`;
+        `${_address.city}, ${_address.state === _address.city ? '' : _address.state + ', '}${_address.country}${_address.zipcode ? ', ' + _address.zipcode : ''}`;
     }
 
     address['address'] =
@@ -86,6 +86,9 @@ export class AddressService {
         $match: {
           user_id: user_id,
         },
+      },
+      {
+        $sort: { updatedAt: -1 },
       },
     ];
 

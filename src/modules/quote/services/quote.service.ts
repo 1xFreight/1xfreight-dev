@@ -356,7 +356,7 @@ export class QuoteService {
               },
             },
           }
-        : { $addFields: {} },
+        : { $project: { references: 0 } },
       {
         $addFields: {
           quote_id_short: {
