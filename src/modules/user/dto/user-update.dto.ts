@@ -10,7 +10,7 @@ export class UserUpdateDto {
 
   @IsString()
   @IsOptional()
-  @Transform(({ value }) => value?.slice(0, 12))
+  @Transform(({ value }) => value?.slice(0, 14))
   phone: string;
 
   @IsString()

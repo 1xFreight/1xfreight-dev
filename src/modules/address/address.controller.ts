@@ -39,4 +39,11 @@ export class AddressController {
   ) {
     return this._addressService.findByUser(user._id, params);
   }
+
+  @Get('/test123')
+  async testIt(@Query() body) {
+    return this._addressService.verifyQuoteAddressesContainMandatoryData(
+      body.quote_id,
+    );
+  }
 }

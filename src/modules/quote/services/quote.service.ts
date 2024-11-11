@@ -219,7 +219,7 @@ export class QuoteService {
                   notes: 1,
                   _id: 1,
                   quote_id: 1,
-                  'local_carrier.name': 1,
+                  local_carrier: 1,
                 },
               },
             ],
@@ -366,6 +366,7 @@ export class QuoteService {
               7,
             ],
           },
+          user_id_obj: { $toObjectId: '$user_id' },
         },
       },
       {
@@ -384,6 +385,55 @@ export class QuoteService {
           as: 'details',
         },
       },
+      {
+        $addFields: {
+          details_: {
+            $arrayElemAt: ['$details', 0],
+          },
+        },
+      },
+      {
+        $addFields: {
+          details_goods_value_str: {
+            $toString: '$details_.goods_value',
+          },
+          details_weight_str: {
+            $toString: '$details_.weight',
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'user_id_obj',
+          foreignField: '_id',
+          as: 'author',
+        },
+      },
+      {
+        $project: {
+          'author.password': 0,
+          'author.auto_pickup': 0,
+          'author.auto_delivery': 0,
+          'author.auto_commodity': 0,
+          'author.default_comment': 0,
+          'author.equipments': 0,
+          'author.position': 0,
+          'author.status': 0,
+          'author.role': 0,
+          'author.phone': 0,
+          'author.currency': 0,
+          'author.quote_type': 0,
+          'author.quotes': 0,
+          'author.saved_addresses': 0,
+          details_: 0,
+        },
+      },
+      {
+        $addFields: {
+          author: { $arrayElemAt: ['$author', 0] },
+        },
+      },
       { $sort: sort },
     ];
 
@@ -397,16 +447,39 @@ export class QuoteService {
                 $options: 'i',
               },
             },
-            { references: { $regex: params?.searchText, $options: 'i' } },
             {
-              $expr: {
-                $regexMatch: {
-                  input: { $toString: '$_id' },
-                  regex: `${params?.searchText}$`,
-                  options: 'i',
-                },
+              'addresses.company_name': {
+                $regex: params?.searchText,
+                $options: 'i',
               },
             },
+            {
+              quote_id_short: {
+                $regex: params?.searchText,
+                $options: 'i',
+              },
+            },
+            {
+              details_goods_value_str: {
+                $regex: `^${params?.searchText}`,
+                $options: 'i',
+              },
+            },
+            {
+              details_weight_str: {
+                $regex: `^${params?.searchText}`,
+                $options: 'i',
+              },
+            },
+            isCarrier
+              ? {
+                  type: {
+                    $regex: params?.searchText,
+                    $options: 'i',
+                  },
+                }
+              : { references: { $regex: params?.searchText, $options: 'i' } },
+            { equipments: { $regex: params?.searchText, $options: 'i' } },
           ],
         },
       });
@@ -650,6 +723,20 @@ export class QuoteService {
       {
         $addFields: {
           user_id_obj: { $toObjectId: '$carrier_id' },
+          author_user_id_obj: { $toObjectId: '$user_id' },
+          details_: {
+            $arrayElemAt: ['$details', 0],
+          },
+        },
+      },
+      {
+        $addFields: {
+          details_goods_value_str: {
+            $toString: '$details_.goods_value',
+          },
+          details_weight_str: {
+            $toString: '$details_.weight',
+          },
         },
       },
       {
@@ -714,6 +801,7 @@ export class QuoteService {
       {
         $addFields: {
           quote_id_str: { $toString: '$_id' },
+          total_cost_str: { $toString: '$total_cost' },
         },
       },
       {
@@ -735,6 +823,39 @@ export class QuoteService {
           },
         },
       },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'author_user_id_obj',
+          foreignField: '_id',
+          as: 'author',
+        },
+      },
+      {
+        $project: {
+          'author.password': 0,
+          'author.auto_pickup': 0,
+          'author.auto_delivery': 0,
+          'author.auto_commodity': 0,
+          'author.default_comment': 0,
+          'author.equipments': 0,
+          'author.position': 0,
+          'author.status': 0,
+          'author.role': 0,
+          'author.phone': 0,
+          'author.currency': 0,
+          'author.quote_type': 0,
+          'author.quotes': 0,
+          'author.saved_addresses': 0,
+        },
+      },
+      {
+        $addFields: {
+          author: {
+            $arrayElemAt: ['$author', 0],
+          },
+        },
+      },
       { $sort: sort },
     ];
 
@@ -745,6 +866,30 @@ export class QuoteService {
             {
               'addresses.address': {
                 $regex: params?.searchText,
+                $options: 'i',
+              },
+            },
+            {
+              'addresses.company_name': {
+                $regex: params?.searchText,
+                $options: 'i',
+              },
+            },
+            {
+              quote_id_short: {
+                $regex: params?.searchText,
+                $options: 'i',
+              },
+            },
+            // {
+            //   details_goods_value_str: {
+            //     $regex: `^${params?.searchText}`,
+            //     $options: 'i',
+            //   },
+            // },
+            {
+              total_cost_str: {
+                $regex: `^${params?.searchText}`,
                 $options: 'i',
               },
             },
@@ -759,6 +904,14 @@ export class QuoteService {
               },
             },
           ],
+        },
+      });
+    }
+
+    if (params?.currency) {
+      _aggregate.push({
+        $match: {
+          currency: params.currency,
         },
       });
     }
@@ -887,7 +1040,7 @@ export class QuoteService {
     return false;
   }
 
-  async acceptQuote(quote_id: string, bid_id: string) {
+  async acceptQuote(quote_id: string, bid_id: string, missingData: Array<any>) {
     const bidData = (
       await this._bidModel
         .aggregate([
@@ -935,8 +1088,30 @@ export class QuoteService {
 
     if (bidData.quotes[0].status !== QuoteStatusEnum.REQUESTED) {
       throw new BadRequestException(
-        'This shipment is already assigned with a quote!',
+        'This shipment cant be assigned with carrier!',
       );
+    }
+
+    if (missingData) {
+      await this._addressService.addAddressesMandatoryData(
+        quote_id,
+        missingData,
+      );
+    }
+
+    const hasMissingFields =
+      !(await this._addressService.verifyQuoteAddressesContainMandatoryData(
+        quote_id,
+      ));
+
+    if (hasMissingFields) {
+      if (missingData) {
+        throw new BadRequestException(
+          'Cant accept quote without providing missing data!',
+        );
+      }
+
+      throw new BadRequestException('Missing data');
     }
 
     return await this._quoteModel

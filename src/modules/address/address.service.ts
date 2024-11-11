@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Address, AddressDocument } from './address.entity';
 import { Model, Types } from 'mongoose';
@@ -219,5 +219,83 @@ export class AddressService {
         },
       )
       .exec();
+  }
+
+  async addAddressesMandatoryData(quote_id: string, data: Array<any>) {
+    const addresses = await this._addressModel
+      .find({
+        quote_id: new ObjectId(quote_id),
+      })
+      .lean()
+      .exec();
+
+    // Use `Promise.all` to ensure updates complete before function exits
+    await Promise.all(
+      addresses.map(async (address) => {
+        const missingData = data.find(
+          (addrData) => addrData._id == address._id,
+        );
+
+        if (missingData) {
+          const newAddrData = {
+            ...missingData,
+            ...address,
+            _id: undefined,
+            createdAt: undefined,
+            updatedAt: undefined,
+            quote_id: undefined,
+            order: undefined,
+            __v: undefined,
+          };
+
+          newAddrData['partial_address'] =
+            `${newAddrData.city}, ${newAddrData.state === newAddrData.city ? '' : newAddrData.state + ', '}${newAddrData.country}${newAddrData.zipcode ? ', ' + newAddrData.zipcode : ''}`;
+
+          newAddrData['address'] =
+            `${newAddrData.street ? newAddrData.street + ', ' : ''}${newAddrData.zipcode ? newAddrData.zipcode + ', ' : ''}${newAddrData.city ? newAddrData.city + ', ' : ''}${newAddrData.state ? newAddrData.state + ', ' : ''}${newAddrData.country}`;
+
+          // Await the update operation and use `$set`
+          await this._addressModel
+            .updateOne({ _id: address._id }, { $set: newAddrData })
+            .exec();
+        }
+      }),
+    );
+  }
+
+  // This function is used to check if addresses contain
+  // all needed data before user accept carrier quote
+  async verifyQuoteAddressesContainMandatoryData(
+    quote_id: string,
+  ): Promise<boolean> {
+    const addresses = await this._addressModel
+      .find({
+        quote_id: new ObjectId(quote_id),
+      })
+      .exec();
+
+    console.log(addresses.length);
+
+    if (!addresses || addresses.length === 0) return false;
+
+    const mandatoryFields = [
+      'street',
+      'city',
+      'state',
+      'zipcode',
+      'country',
+      'company_name',
+      'contact_name',
+      'contact_phone',
+      'open_hours',
+    ];
+
+    const hasMissingFields = addresses.some((address) =>
+      mandatoryFields.some(
+        (field) => !address[field] || address[field].trim() === '',
+      ),
+    );
+
+    return !hasMissingFields;
   }
 }

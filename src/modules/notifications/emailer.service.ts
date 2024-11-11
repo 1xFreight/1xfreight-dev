@@ -197,6 +197,31 @@ ${
       <img src="https://i.ibb.co/k3VrYPH/weight-50.png" alt="type" width="20" height="20"> <strong style="margin: 0 8px; white-space: nowrap">Weight:</strong> ${quote.weight}
     </div>
     
+     <!-- Skid spots if available -->
+    ${
+      quote.summary.skid_spots
+        ? `<div style="margin-bottom: 3px;display: flex; align-items: start;">
+             <img  src="https://i.ibb.co/VJGZJ6k/crop-minimalistic-svgrepo-com.png" alt="skidspots" width="20" height="20"> <strong style="margin: 0 8px; white-space: nowrap">Estimated skid spots:</strong> ${quote.summary.skid_spots}
+           </div>`
+        : ''
+    }
+    
+    ${
+      quote.summary.skid_spots
+        ? `<div style="margin-bottom: 3px;display: flex; align-items: start;">
+             <img src="https://i.ibb.co/m8ntbp7/radial-blur-svgrepo-com.png" alt="denisty" width="20" height="20"> <strong style="margin: 0 8px; white-space: nowrap">Density:</strong> ${quote.summary.density.toFixed(2)} ${quote.summary.weight_unit}/ft3
+           </div>`
+        : ''
+    }
+    
+    ${
+      quote.summary.skid_spots
+        ? `<div style="margin-bottom: 3px;display: flex; align-items: start;">
+             <img src="https://i.ibb.co/VBB0GvM/total0density.png" alt="type" width="20" height="20"> <strong style="margin: 0 8px; white-space: nowrap">Volume:</strong> ${quote.summary.volume.toFixed(2)} ft3
+           </div>`
+        : ''
+    }
+    
     
     ${quote.pickup
       .map(

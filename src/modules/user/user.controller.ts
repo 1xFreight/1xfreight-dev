@@ -63,15 +63,7 @@ export class UserController {
   @Get('/members')
   @Roles([UserRolesEnum.SHIPPER, UserRolesEnum.SHIPPER_DEMO])
   async getMembers(@User() user, @Query() params: PaginationWithFilters) {
-    const members = await this._userService.findMembers(user._id, params);
-    return {
-      members: members.members.map((member) =>
-        plainToInstance(UserDto, member, {
-          excludeExtraneousValues: true,
-        }),
-      ),
-      totalMembers: members.totalMembers,
-    };
+    return this._userService.findMembers(user._id, params);
   }
 
   @Auth()

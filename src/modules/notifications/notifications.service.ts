@@ -166,7 +166,11 @@ export class NotificationsService {
               'details.commodity': 1,
               'details.goods_value': 1,
               'details.weight': 1,
+              'details.weight_unit': 1,
               'details.equipments': 1,
+              'details.skid_spots': 1,
+              'details.volume': 1,
+              'details.density': 1,
               quote_author: 1,
               subscribers: 1,
               equipments: 1,
@@ -323,6 +327,12 @@ export class NotificationsService {
           // viewUrl: viewQuoteLink,
           author: quoteAuthor.name,
           weight: quoteDetails.weight,
+          summary: {
+            skid_spots: quoteDetails.skid_spots ?? null,
+            volume: quoteDetails.volume ?? null,
+            density: quoteDetails.density ?? null,
+            weight_unit: quoteDetails.weight_unit ?? null,
+          },
           // isHazard: true,
         };
 
@@ -479,7 +489,11 @@ export class NotificationsService {
               'details.commodity': 1,
               'details.goods_value': 1,
               'details.weight': 1,
+              'details.weight_unit': 1,
               'details.equipments': 1,
+              'details.skid_spots': 1,
+              'details.volume': 1,
+              'details.density': 1,
               quote_author: 1,
               subscribers: 1,
               equipments: 1,
@@ -599,6 +613,12 @@ export class NotificationsService {
         declineUrl,
         author: quoteAuthor.name,
         weight: quoteDetails.weight,
+        summary: {
+          skid_spots: quoteDetails.skid_spots ?? null,
+          volume: quoteDetails.volume ?? null,
+          density: quoteDetails.density ?? null,
+          weight_unit: quoteDetails.weight_unit ?? null,
+        },
         // isHazard: true,
       };
 
@@ -735,7 +755,11 @@ export class NotificationsService {
               'details.commodity': 1,
               'details.goods_value': 1,
               'details.weight': 1,
+              'details.weight_unit': 1,
               'details.equipments': 1,
+              'details.skid_spots': 1,
+              'details.volume': 1,
+              'details.density': 1,
               quote_author: 1,
               subscribers: 1,
               equipments: 1,
@@ -826,6 +850,12 @@ export class NotificationsService {
       // viewUrl: viewQuoteLink,
       author: quoteAuthor.name,
       weight: quoteDetails.weight,
+      summary: {
+        skid_spots: quoteDetails.skid_spots ?? null,
+        volume: quoteDetails.volume ?? null,
+        density: quoteDetails.density ?? null,
+        weight_unit: quoteDetails.weight_unit ?? null,
+      },
       // isHazard: true,
     };
 
@@ -980,7 +1010,11 @@ export class NotificationsService {
               'details.commodity': 1,
               'details.goods_value': 1,
               'details.weight': 1,
+              'details.weight_unit': 1,
               'details.equipments': 1,
+              'details.skid_spots': 1,
+              'details.volume': 1,
+              'details.density': 1,
               quote_author: 1,
               subscribers: 1,
               equipments: 1,
@@ -1083,6 +1117,12 @@ export class NotificationsService {
         commodity: quote.details.commodity,
         author: quoteAuthor.name,
         weight: quoteDetails.weight,
+        summary: {
+          skid_spots: quoteDetails.skid_spots ?? null,
+          volume: quoteDetails.volume ?? null,
+          density: quoteDetails.density ?? null,
+          weight_unit: quoteDetails.weight_unit ?? null,
+        },
         status: quote.status,
       };
 
@@ -1228,7 +1268,11 @@ export class NotificationsService {
               'details.commodity': 1,
               'details.goods_value': 1,
               'details.weight': 1,
+              'details.weight_unit': 1,
               'details.equipments': 1,
+              'details.skid_spots': 1,
+              'details.volume': 1,
+              'details.density': 1,
               quote_author: 1,
               subscribers: 1,
               equipments: 1,
@@ -1370,6 +1414,12 @@ export class NotificationsService {
         estPerMile:
           (bid.amount / quote.total_miles).toFixed(2) + ' ' + quote.currency,
         notes: bid.notes,
+      },
+      summary: {
+        skid_spots: quoteDetails.skid_spots ?? null,
+        volume: quoteDetails.volume ?? null,
+        density: quoteDetails.density ?? null,
+        weight_unit: quoteDetails.weight_unit ?? null,
       },
     };
 

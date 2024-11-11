@@ -9,6 +9,7 @@ import { User, UserDocument } from '../user/entities/user.entity';
 import { UserRolesEnum } from '../common/enums/roles.enum';
 import { SpotGroup, SpotGroupDocument } from './entitites/spot-group.entity';
 import { PaginationWithFilters } from '../common/interfaces/pagination.interface';
+import { ObjectId } from 'mongodb';
 
 @Injectable()
 export class CarrierService {
@@ -110,7 +111,7 @@ export class CarrierService {
 
   async updateCarrierInfo(user_id: string, carrier: Partial<Carrier>) {
     return this._carrierModel
-      .updateOne({ user_id, _id: carrier._id }, carrier)
+      .updateOne({ user_id, _id: new ObjectId(carrier._id) }, carrier)
       .exec();
   }
 
@@ -306,8 +307,15 @@ export class CarrierService {
     carriers: string[],
     status: string,
   ) {
+    const carrierIdWithoutDuplicates = [...new Set(carriers)];
+
     return (
-      await this._spotGroupModel.create({ user_id, name, carriers, status })
+      await this._spotGroupModel.create({
+        user_id,
+        name,
+        carriers: carrierIdWithoutDuplicates,
+        status,
+      })
     ).save;
   }
 

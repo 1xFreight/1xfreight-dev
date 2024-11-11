@@ -103,9 +103,15 @@ export class QuoteController {
   ])
   async acceptQuote(
     @User() user,
-    @Body() body: { quote_id: string; bid_id: string },
+    @Body() body: { quote_id: string; bid_id: string; missingData: Array<any> },
   ) {
-    return !!(await this._quoteService.acceptQuote(body.quote_id, body.bid_id));
+    console.log(body.missingData);
+
+    return !!(await this._quoteService.acceptQuote(
+      body.quote_id,
+      body.bid_id,
+      body.missingData,
+    ));
   }
 
   @Auth()

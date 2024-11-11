@@ -86,6 +86,7 @@ export class QuoteCarrierService {
         $addFields: {
           user_id_obj: { $toObjectId: '$user_id' },
           bid_id_obj: { $toObjectId: '$bid_id' },
+          quote_id_str: { $toString: '$_id' },
         },
       },
       {
@@ -115,12 +116,39 @@ export class QuoteCarrierService {
       {
         $addFields: {
           carrier_bid: { $arrayElemAt: ['$carrier_bid', 0] },
+          author: { $arrayElemAt: ['$user', 0] },
+          quote_id_short: {
+            $substrBytes: [
+              '$quote_id_str',
+              { $subtract: [{ $strLenBytes: '$quote_id_str' }, 7] },
+              7,
+            ],
+          },
+          details_: {
+            $arrayElemAt: ['$details', 0],
+          },
+        },
+      },
+      {
+        $addFields: {
+          details_goods_value_str: {
+            $toString: '$details_.goods_value',
+          },
+          details_weight_str: {
+            $toString: '$details_.weight',
+          },
+          carrier_bid_amount_str: {
+            $toString: '$carrier_bid.amount',
+          },
         },
       },
       {
         $project: {
           user_id_obj: 0,
           bid_id_obj: 0,
+          decline: 0,
+          subscribers: 0,
+          details_: 0,
         },
       },
     ];
@@ -163,14 +191,58 @@ export class QuoteCarrierService {
                 $options: 'i',
               },
             },
-            { references: { $regex: params?.searchText, $options: 'i' } },
             {
-              $expr: {
-                $regexMatch: {
-                  input: { $toString: '$_id' },
-                  regex: `${params?.searchText}$`,
-                  options: 'i',
-                },
+              'addresses.company_name': {
+                $regex: params?.searchText,
+                $options: 'i',
+              },
+            },
+            {
+              quote_id_short: {
+                $regex: params?.searchText,
+                $options: 'i',
+              },
+            },
+            {
+              type: {
+                $regex: params?.searchText,
+                $options: 'i',
+              },
+            },
+            {
+              equipments: {
+                $regex: params?.searchText,
+                $options: 'i',
+              },
+            },
+            {
+              references: {
+                $regex: params?.searchText,
+                $options: 'i',
+              },
+            },
+            {
+              details_goods_value_str: {
+                $regex: `^${params?.searchText}`,
+                $options: 'i',
+              },
+            },
+            {
+              details_weight_str: {
+                $regex: `^${params?.searchText}`,
+                $options: 'i',
+              },
+            },
+            {
+              carrier_bid_amount_str: {
+                $regex: `^${params?.searchText}`,
+                $options: 'i',
+              },
+            },
+            {
+              status: {
+                $regex: `^${params?.searchText}`,
+                $options: 'i',
               },
             },
           ],
@@ -283,6 +355,18 @@ export class QuoteCarrierService {
       {
         $addFields: {
           quote_id_str: { $toString: '$_id' },
+          author: { $arrayElemAt: ['$user', 0] },
+        },
+      },
+      {
+        $addFields: {
+          quote_id_short: {
+            $substrBytes: [
+              '$quote_id_str',
+              { $subtract: [{ $strLenBytes: '$quote_id_str' }, 7] },
+              7,
+            ],
+          },
         },
       },
       {
@@ -300,6 +384,8 @@ export class QuoteCarrierService {
         $project: {
           user_id_obj: 0,
           references: 0,
+          subscribers: 0,
+          declined: 0,
         },
       },
     ];

@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { User, UserDocument } from './entities/user.entity';
 import { Model } from 'mongoose';
 import { PaginationWithFilters } from '../common/interfaces/pagination.interface';
+import { ObjectId } from 'mongodb';
 
 @Injectable()
 export class UserService {
@@ -27,9 +28,14 @@ export class UserService {
   }
 
   async updateMemberInfo(newUserData: Partial<User>, user_id: string) {
-    console.log(newUserData, user_id);
     return this.userModel
-      .updateOne({ _id: newUserData._id, referral_id: user_id }, newUserData)
+      .updateOne(
+        {
+          _id: new ObjectId(newUserData._id),
+          referral_id: user_id,
+        },
+        newUserData,
+      )
       .exec();
   }
 
@@ -37,6 +43,11 @@ export class UserService {
     const _aggregate: any = [
       {
         $match: { referral_id: user_id },
+      },
+      {
+        $project: {
+          password: 0,
+        },
       },
     ];
 

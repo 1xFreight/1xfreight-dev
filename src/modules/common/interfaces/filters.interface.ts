@@ -10,4 +10,5 @@ export interface FiltersI {
   startDate?: string;
   sort?: string;
   sortDirection?: string;
+  currency?: string;
 }

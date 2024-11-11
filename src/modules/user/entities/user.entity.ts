@@ -10,9 +10,6 @@ import { QuoteTypeEnum } from '../../common/enums/quote-type.enum';
 export type UserDocument = User & Document;
 
 @Schema({
-  toJSON: {
-    getters: true,
-  },
   timestamps: true,
 })
 export class User {
