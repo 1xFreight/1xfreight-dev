@@ -46,6 +46,7 @@ export class AuthService {
       _id: user._id,
       email: user.email,
       role: user.role,
+      referral_id: user?.referral_id ?? null,
     };
 
     return this._jwtService.sign(payload, {

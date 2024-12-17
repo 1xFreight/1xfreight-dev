@@ -27,7 +27,11 @@ export class CarrierController {
     UserRolesEnum.SHIPPER_MEMBER,
   ])
   async getUserCarriers(@User() user, @Query() params: PaginationWithFilters) {
-    return this._carrierService.getUserCarriers(user._id, params);
+    return this._carrierService.getUserCarriers(
+      user._id,
+      params,
+      user.referral_id,
+    );
   }
 
   @Auth()
@@ -49,16 +53,7 @@ export class CarrierController {
     UserRolesEnum.SHIPPER_MEMBER,
   ])
   async createCarrier(@User() user, @Body() body) {
-    try {
-      await this._carrierService.create(body, user._id);
-    } catch (e) {
-      if (e.code === 11000) {
-        throw new BadRequestException(
-          `Email ${body?.email} is already associated with a carrier`,
-        );
-      }
-    }
-
+    await this._carrierService.create(body, user._id, user.referral_id);
     return true;
   }
 
@@ -98,5 +93,27 @@ export class CarrierController {
       body.carriers,
       body.status,
     );
+  }
+
+  @Auth()
+  @Post('/spot-update')
+  @Roles([
+    UserRolesEnum.SHIPPER,
+    UserRolesEnum.SHIPPER_DEMO,
+    UserRolesEnum.SHIPPER_MEMBER,
+  ])
+  async updateSpotGroup(@User() user, @Body() body: Partial<SpotGroup>) {
+    return this._carrierService.updateSpotGroup(user._id, body);
+  }
+
+  @Auth()
+  @Post('/spot-delete')
+  @Roles([
+    UserRolesEnum.SHIPPER,
+    UserRolesEnum.SHIPPER_DEMO,
+    UserRolesEnum.SHIPPER_MEMBER,
+  ])
+  async deleteSpotGroup(@User() user, @Body() body: { _id: string }) {
+    return this._carrierService.deleteSpotGroup(user._id, body._id);
   }
 }

@@ -274,8 +274,6 @@ export class AddressService {
       })
       .exec();
 
-    console.log(addresses.length);
-
     if (!addresses || addresses.length === 0) return false;
 
     const mandatoryFields = [
@@ -297,5 +295,20 @@ export class AddressService {
     );
 
     return !hasMissingFields;
+  }
+
+  async updateAddress(user_id: string, address: Partial<Address>) {
+    const newAddrData = { ...address };
+
+    newAddrData['partial_address'] =
+      `${newAddrData.city}, ${newAddrData.state === newAddrData.city ? '' : newAddrData.state + ', '}${newAddrData.country}${newAddrData.zipcode ? ', ' + newAddrData.zipcode : ''}`;
+
+    newAddrData['address'] =
+      `${newAddrData.street ? newAddrData.street + ', ' : ''}${newAddrData.zipcode ? newAddrData.zipcode + ', ' : ''}${newAddrData.city ? newAddrData.city + ', ' : ''}${newAddrData.state ? newAddrData.state + ', ' : ''}${newAddrData.country}`;
+
+    return this._addressModel.updateOne(
+      { user_id, _id: address._id },
+      newAddrData,
+    );
   }
 }

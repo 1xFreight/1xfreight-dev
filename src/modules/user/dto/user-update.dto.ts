@@ -5,7 +5,7 @@ import { Transform } from 'class-transformer';
 export class UserUpdateDto {
   @IsString()
   @IsOptional()
-  @Transform(({ value }) => value?.slice(0, 20))
+  @Transform(({ value }) => value?.slice(0, 50))
   name: string;
 
   @IsString()
@@ -38,4 +38,19 @@ export class UserUpdateDto {
   @IsOptional()
   @Transform(({ value }) => value?.slice(0, 256))
   default_comment: string;
+
+  @IsString()
+  @IsOptional()
+  @Transform(({ value }) => value?.slice(0, 256))
+  billing_address: string;
+
+  @IsString()
+  @IsOptional()
+  @Transform(({ value }) => value?.slice(0, 100))
+  billing_email: string;
+
+  @IsString()
+  @IsOptional()
+  @Transform(({ value }) => value?.slice(0, 14))
+  billing_phone: string;
 }

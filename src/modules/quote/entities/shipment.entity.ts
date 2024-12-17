@@ -80,6 +80,18 @@ export class Shipment {
 
   @Prop()
   skid_spots: number;
+
+  @Prop()
+  customs_broker_name: string;
+
+  @Prop()
+  customs_broker_country: string;
+
+  @Prop()
+  customs_broker_phone: string;
+
+  @Prop()
+  customs_broker_email: string;
 }
 
 export const ShipmentSchema = SchemaFactory.createForClass(Shipment);

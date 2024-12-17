@@ -51,6 +51,14 @@ export class UserService {
       },
     ];
 
+    if (params?.status) {
+      _aggregate.push({
+        $match: {
+          status: params?.status,
+        },
+      });
+    }
+
     if (params?.searchText) {
       _aggregate.push({
         $match: {

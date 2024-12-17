@@ -19,6 +19,8 @@ import { BidModule } from './modules/bid/bid.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { CurrencyModule } from './modules/currency/currency.module';
 
 @Module({
   imports: [
@@ -41,6 +43,8 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     EventEmitterModule.forRoot(),
     AnalyticsModule,
     NotificationsModule,
+    ScheduleModule.forRoot(),
+    CurrencyModule,
   ],
   controllers: [AppController],
   providers: [

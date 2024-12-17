@@ -26,6 +26,17 @@ export class AddressController {
   }
 
   @Auth()
+  @Post('/update')
+  @Roles([
+    UserRolesEnum.SHIPPER,
+    UserRolesEnum.SHIPPER_DEMO,
+    UserRolesEnum.SHIPPER_MEMBER,
+  ])
+  async updateUserLocation(@User() user, @Body() body: Partial<Address>) {
+    return !!(await this._addressService.updateAddress(user._id, body));
+  }
+
+  @Auth()
   @Get('/')
   @Roles([
     UserRolesEnum.SHIPPER,
@@ -38,12 +49,5 @@ export class AddressController {
     params: PaginationWithFilters,
   ) {
     return this._addressService.findByUser(user._id, params);
-  }
-
-  @Get('/test123')
-  async testIt(@Query() body) {
-    return this._addressService.verifyQuoteAddressesContainMandatoryData(
-      body.quote_id,
-    );
   }
 }

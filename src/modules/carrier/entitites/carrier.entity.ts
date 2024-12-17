@@ -16,7 +16,7 @@ export class Carrier {
   @Prop({ required: true })
   address: string;
 
-  @Prop({ required: true, unique: true })
+  @Prop({ required: true, unique: false })
   email: string;
 
   @Prop({ required: true })

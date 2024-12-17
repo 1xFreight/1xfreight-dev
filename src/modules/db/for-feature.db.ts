@@ -15,6 +15,7 @@ import {
   Notification,
   NotificationSchema,
 } from '../notifications/notification.entity';
+import { Currency, CurrencySchema } from '../currency/currency.entity';
 
 export default [
   {
@@ -60,5 +61,9 @@ export default [
   {
     name: Notification.name,
     schema: NotificationSchema,
+  },
+  {
+    name: Currency.name,
+    schema: CurrencySchema,
   },
 ];

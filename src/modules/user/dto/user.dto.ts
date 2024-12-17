@@ -17,6 +17,15 @@ export class UserDto {
   phone: string;
 
   @Expose()
+  billing_address: string;
+
+  @Expose()
+  billing_phone: string;
+
+  @Expose()
+  billing_email: string;
+
+  @Expose()
   currency: string;
 
   @Expose()

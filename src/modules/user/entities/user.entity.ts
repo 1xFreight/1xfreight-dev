@@ -75,6 +75,15 @@ export class User {
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Address' }] })
   saved_addresses: Address[];
+
+  @Prop()
+  billing_phone: string;
+
+  @Prop()
+  billing_address: string;
+
+  @Prop()
+  billing_email: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

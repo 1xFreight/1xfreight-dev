@@ -41,8 +41,26 @@ export class QuoteCarrierService {
   }
 
   async getCarrierActiveLoads(user_id: string, params: PaginationWithFilters) {
+    let sort: any = { updatedAt: -1 };
+
+    if (params.sort) {
+      // Check if params.sort is a string and can be parsed
+      if (typeof params.sort === 'string') {
+        try {
+          const sortObj = JSON.parse(params.sort);
+          if (sortObj && Object.keys(sortObj).length) {
+            sort = sortObj;
+          }
+        } catch (error) {
+          console.error('Invalid JSON in sort parameter:', error);
+        }
+      } else if (typeof params.sort === 'object') {
+        // If it's already an object, assign it directly
+        sort = params.sort;
+      }
+    }
+
     const _aggregate: any[] = [
-      { $sort: { updatedAt: -1 } },
       {
         $match: {
           carrier_id: user_id,
@@ -150,6 +168,58 @@ export class QuoteCarrierService {
           subscribers: 0,
           details_: 0,
         },
+      },
+      {
+        $addFields: {
+          // Adding the firstPickup field
+          firstPickup: {
+            $first: {
+              $filter: {
+                input: '$addresses',
+                as: 'address',
+                cond: {
+                  $and: [
+                    { $eq: ['$$address.address_type', 'pickup'] }, // Match address_type = 'pickup'
+                    { $eq: ['$$address.order', 1] }, // Match order = 1
+                  ],
+                },
+              },
+            },
+          },
+          // Adding the firstDrop field
+          firstDrop: {
+            $first: {
+              $filter: {
+                input: '$addresses',
+                as: 'address',
+                cond: {
+                  $and: [
+                    { $eq: ['$$address.address_type', 'drop'] }, // Match address_type = 'pickup'
+                    { $eq: ['$$address.order', 1] }, // Match order = 1
+                  ],
+                },
+              },
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          quote_id_str: { $toString: '$_id' },
+          'firstPickup.dateAsDate': {
+            $dateFromString: {
+              dateString: '$firstPickup.date', // Properly wrapping the date string in an object
+            },
+          },
+          'firstDrop.dateAsDate': {
+            $dateFromString: {
+              dateString: '$firstDrop.date', // Properly wrapping the date string in an object
+            },
+          },
+        },
+      },
+      {
+        $sort: sort,
       },
     ];
 
@@ -471,8 +541,6 @@ export class QuoteCarrierService {
       currentStatusIndex + 1
     ];
     const nextStatus = QuoteStatusEnum[nextStatusKey];
-
-    console.log(nextStatus);
 
     this._notificationService.notifyStatusUpdate(
       quote_id,

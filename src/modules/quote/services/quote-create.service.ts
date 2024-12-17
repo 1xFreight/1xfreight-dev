@@ -93,6 +93,16 @@ export class QuoteCreateService {
     this._notificationService.notifyNewQuote(quote_id.toString());
   }
 
+  async createTemplate(user_id: string, quote_id: string, name: string) {
+    return (
+      await this._templateModel.create({
+        user_id,
+        quote_id: new ObjectId(quote_id),
+        name,
+      })
+    ).save;
+  }
+
   async duplicateLoad(user_id: string, payload: any, referral_id?: string) {
     const originalQuote = await this._quoteModel
       .aggregate([

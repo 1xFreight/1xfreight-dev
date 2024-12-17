@@ -23,8 +23,6 @@ export class QuoteController {
   @Auth()
   @Get('/')
   async myQuotes(@User() user, @Query() params: PaginationWithFilters) {
-    console.log(params);
-
     return this._quoteService.getUserQuotes(user, params);
   }
   @Auth()
@@ -105,8 +103,6 @@ export class QuoteController {
     @User() user,
     @Body() body: { quote_id: string; bid_id: string; missingData: Array<any> },
   ) {
-    console.log(body.missingData);
-
     return !!(await this._quoteService.acceptQuote(
       body.quote_id,
       body.bid_id,
@@ -176,5 +172,23 @@ export class QuoteController {
   @Get('/quote-status/:quote_id')
   async getQuoteStatus(@User() user, @Param('quote_id') quote_id) {
     return this._quoteService.findQuoteStatus(user, quote_id);
+  }
+
+  @Auth()
+  @Post('/template')
+  @Roles([
+    UserRolesEnum.SHIPPER,
+    UserRolesEnum.SHIPPER_DEMO,
+    UserRolesEnum.SHIPPER_MEMBER,
+  ])
+  async saveTemplate(
+    @User() user,
+    @Body() body: { quote_id: string; name: string },
+  ) {
+    return await this._quoteCreateService.createTemplate(
+      user._id,
+      body.quote_id,
+      body.name,
+    );
   }
 }
