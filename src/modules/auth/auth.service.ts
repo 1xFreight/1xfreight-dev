@@ -3,13 +3,14 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { UserService } from '../user/user.service';
+import { UserService } from '../user/services/user.service';
 import { JwtService } from '@nestjs/jwt';
 import { User } from '../user/entities/user.entity';
 import * as process from 'process';
 import * as bcrypt from 'bcrypt';
 import { EmailService } from '../notifications/emailer.service';
 import { shortAddress } from '../common/utils/address.utils';
+import { UserStatusEnum } from '../common/enums/user-status.enum';
 
 @Injectable()
 export class AuthService {
@@ -82,6 +83,10 @@ export class AuthService {
       throw new BadRequestException(
         'No account was found associated with the provided email address. Please verify and try again.',
       );
+    }
+
+    if (user.status === UserStatusEnum.INACTIVE) {
+      throw new BadRequestException('User account is deactivated!');
     }
 
     if (user && user.password) {

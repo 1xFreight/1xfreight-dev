@@ -55,14 +55,49 @@ export class AnalyticsService {
           },
         },
         {
+          $addFields: {
+            user_id: user_id,
+            user_id_obj: {
+              $toObjectId: user_id,
+            },
+          },
+        },
+        {
+          $lookup: {
+            from: 'carriers',
+            localField: 'user_id',
+            foreignField: 'user_id',
+            as: 'carriers',
+          },
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'user_id',
+            foreignField: 'referral_id',
+            as: 'team_members',
+          },
+        },
+        {
+          $addFields: {
+            carriers: {
+              $size: '$carriers',
+            },
+            team_members: {
+              $size: '$team_members',
+            },
+          },
+        },
+        {
           $project: {
             _id: 0,
-            quotes: 1,
             quotes_number: 1,
             ftl: 1,
             ltl: 1,
             air: 1,
             fcl: 1,
+            carriers: 1,
+            team_members: 1,
           },
         },
       ])
@@ -74,12 +109,13 @@ export class AnalyticsService {
     params: PaginationWithFilters,
   ) {
     const _aggregate = [];
+    const _aggregateForQuotes = [];
 
     if (params.startDate) {
       const startDate = new Date(params.startDate);
       startDate.setHours(0, 0, 0, 0);
 
-      _aggregate.push({
+      _aggregateForQuotes.push({
         $match: {
           createdAt: {
             $gte: startDate,
@@ -92,7 +128,7 @@ export class AnalyticsService {
       const endDate = new Date(params.endDate);
       endDate.setHours(23, 59, 59, 0);
 
-      _aggregate.push({
+      _aggregateForQuotes.push({
         $match: {
           createdAt: {
             $lt: endDate,
@@ -173,6 +209,7 @@ export class AnalyticsService {
                 status: QuoteStatusEnum.DELIVERED,
               },
             },
+            ..._aggregateForQuotes,
             {
               $addFields: {
                 bid_id_obj: {
@@ -669,6 +706,8 @@ export class AnalyticsService {
               shortLaneStart: '$laneStart.partial_address',
               laneEnd: '$laneEnd.address',
               shortLaneEnd: '$laneEnd.partial_address',
+              companyStart: '$laneStart.company_name',
+              companyEnd: '$laneEnd.company_name',
             },
             quotes: { $push: '$$ROOT' }, // Combine all quotes with the same laneStart and laneEnd
             usd_total: {

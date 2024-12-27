@@ -15,12 +15,21 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   private static extractJWT(req): string | null {
-    const token = req?.rawHeaders
-      ?.find((header) => header.includes('accessToken'))
-      ?.replace('accessToken=', '');
+    const isCookieContainAccessToken = req?.rawHeaders?.find((header) =>
+      header.includes('accessToken'),
+    );
 
-    if (token) return token;
-    return null;
+    if (!isCookieContainAccessToken) return null;
+
+    const isCookieMultiTokens = isCookieContainAccessToken.includes(';');
+
+    if (!isCookieMultiTokens)
+      return isCookieContainAccessToken.replace('accessToken=', '');
+
+    return isCookieContainAccessToken
+      .split(';')
+      .find((token) => token.includes('accessToken'))
+      .replace('accessToken=');
   }
 
   async validate(payload: { email: string }) {

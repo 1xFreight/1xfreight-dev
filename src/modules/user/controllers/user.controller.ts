@@ -7,19 +7,19 @@ import {
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
-import { UserService } from './user.service';
-import { Auth } from '../auth/decorators/auth.decorator';
-import { User } from './decorators/user.decorator';
-import { UserDto } from './dto/user.dto';
+import { UserService } from '../services/user.service';
+import { Auth } from '../../auth/decorators/auth.decorator';
+import { User } from '../decorators/user.decorator';
+import { UserDto } from '../dto/user.dto';
 import { plainToInstance } from 'class-transformer';
-import { UserUpdateDto } from './dto/user-update.dto';
-import { UserMemberDto } from './dto/user-member.dto';
-import { UserRolesEnum } from '../common/enums/roles.enum';
-import { User as UserEntity } from './entities/user.entity';
+import { UserUpdateDto } from '../dto/user-update.dto';
+import { UserMemberDto } from '../dto/user-member.dto';
+import { UserRolesEnum } from '../../common/enums/roles.enum';
+import { User as UserEntity } from '../entities/user.entity';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { FileSystemService } from '../files/file.service';
-import { PaginationWithFilters } from '../common/interfaces/pagination.interface';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { FileSystemService } from '../../files/file.service';
+import { PaginationWithFilters } from '../../common/interfaces/pagination.interface';
+import { Roles } from '../../auth/decorators/roles.decorator';
 
 @Controller('users')
 export class UserController {

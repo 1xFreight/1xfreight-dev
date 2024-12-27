@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Quote, QuoteDocument } from '../entities/quote.entity';
 import { Model } from 'mongoose';
@@ -10,6 +10,8 @@ import { QuoteStatusEnum } from '../../common/enums/quote-status.enum';
 import { Item, ItemDocument } from '../entities/item.entity';
 import { ObjectId } from 'mongodb';
 import { NotificationsService } from '../../notifications/notifications.service';
+import { User, UserDocument } from '../../user/entities/user.entity';
+import { UserStatusEnum } from '../../common/enums/user-status.enum';
 
 @Injectable()
 export class QuoteCreateService {
@@ -23,9 +25,22 @@ export class QuoteCreateService {
     private readonly _itemModel: Model<ItemDocument>,
     private readonly _addressService: AddressService,
     private readonly _notificationService: NotificationsService,
+    @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
   ) {}
 
   async createQuoteFtlLtl(quote: any, user_id: string, referral_id?: string) {
+    const user = await this.userModel
+      .findOne({
+        _id: user_id,
+      })
+      .exec();
+
+    if (user.status === UserStatusEnum.INACTIVE) {
+      throw new BadRequestException(
+        'User account is deactivated and cant create Quote!',
+      );
+    }
+
     const { pickup, drop, shipment_details, review, subscribers, equipments } =
       quote;
 

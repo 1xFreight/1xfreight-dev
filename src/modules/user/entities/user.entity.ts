@@ -84,6 +84,12 @@ export class User {
 
   @Prop()
   billing_email: string;
+
+  @Prop()
+  estimated_quotes_demo: string;
+
+  @Prop()
+  free_trial_days: number;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

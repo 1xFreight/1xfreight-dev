@@ -9,7 +9,7 @@ import { BidService } from '../../bid/bid.service';
 import { AddressService } from '../../address/address.service';
 import { QuoteCreateService } from '../services/quote-create.service';
 import { QuoteEnum } from '../../common/enums/quote.enum';
-import { UserController } from '../../user/user.controller';
+import { UserController } from '../../user/controllers/user.controller';
 
 @Controller('quote')
 export class QuoteController {
