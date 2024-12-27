@@ -453,6 +453,30 @@ export class AnalyticsService {
           total_cwt: {
             $divide: ['$total_weight_lb', 100],
           },
+          on_time_drop_percent: {
+            $cond: [
+              {
+                $or: [
+                  { $eq: ['$total_drops', 0] },
+                  { $eq: ['$total_drops', null] },
+                ],
+              },
+              null, // or 0 if you prefer
+              { $divide: ['$on_time_drops', '$total_drops'] },
+            ],
+          },
+          on_time_pickup_percent: {
+            $cond: [
+              {
+                $or: [
+                  { $eq: ['$total_pickups', 0] },
+                  { $eq: ['$total_pickups', null] },
+                ],
+              },
+              null,
+              { $divide: ['$on_time_pickups', '$total_pickups'] },
+            ],
+          },
           total_in_usd: {
             $sum: [
               '$usd_total',
@@ -479,7 +503,7 @@ export class AnalyticsService {
         },
       },
       {
-        $limit: 5,
+        $limit: Number(params?.limit) ?? 5,
       },
     ]);
 
@@ -544,9 +568,7 @@ export class AnalyticsService {
     };
 
     if (params?.sort) {
-      sort = {
-        [params.sort]: -1,
-      };
+      sort = JSON.parse(params.sort);
     }
 
     return await this._quoteModel
@@ -759,6 +781,30 @@ export class AnalyticsService {
             number_of_loads: {
               $size: '$quotes',
             },
+            on_time_drop_percent: {
+              $cond: [
+                {
+                  $or: [
+                    { $eq: ['$total_drops', 0] },
+                    { $eq: ['$total_drops', null] },
+                  ],
+                },
+                null, // or 0 if you prefer
+                { $divide: ['$on_time_drops', '$total_drops'] },
+              ],
+            },
+            on_time_pickup_percent: {
+              $cond: [
+                {
+                  $or: [
+                    { $eq: ['$total_pickups', 0] },
+                    { $eq: ['$total_pickups', null] },
+                  ],
+                },
+                null,
+                { $divide: ['$on_time_pickups', '$total_pickups'] },
+              ],
+            },
             total_weight_lb: {
               $reduce: {
                 input: '$quotes',
@@ -872,7 +918,7 @@ export class AnalyticsService {
           $sort: sort,
         },
         {
-          $limit: 5,
+          $limit: Number(params?.limit) ?? 5,
         },
       ])
       .exec();

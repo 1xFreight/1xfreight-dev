@@ -27,6 +27,12 @@ export class UserService {
     return this.userModel.updateOne({ _id: user_id }, newUserData).exec();
   }
 
+  async updateReferralsInfo(newUserData: Partial<User>, user_id: string) {
+    return this.userModel
+      .updateMany({ referral_id: user_id }, newUserData)
+      .exec();
+  }
+
   async updateMemberInfo(newUserData: Partial<User>, user_id: string) {
     return this.userModel
       .updateOne(

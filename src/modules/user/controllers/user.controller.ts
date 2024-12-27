@@ -50,10 +50,13 @@ export class UserController {
   @Post('/create-member')
   @Roles([UserRolesEnum.SHIPPER, UserRolesEnum.SHIPPER_DEMO])
   async createMember(@User() user, @Body() newUserData: UserMemberDto) {
+    const shipperUser = await this._userService.findOneById(user._id);
+
     const newUser = {
       ...newUserData,
       role: UserRolesEnum.SHIPPER_MEMBER,
       referral_id: user._id,
+      logo: shipperUser?.logo,
     };
 
     return !!(await this._userService.create(newUser));
@@ -76,11 +79,7 @@ export class UserController {
   @Auth()
   @Post('upload-logo')
   @UseInterceptors(FileInterceptor('file'))
-  @Roles([
-    UserRolesEnum.SHIPPER,
-    UserRolesEnum.SHIPPER_DEMO,
-    UserRolesEnum.SHIPPER_MEMBER,
-  ])
+  @Roles([UserRolesEnum.SHIPPER, UserRolesEnum.SHIPPER_DEMO])
   async uploadFile(@UploadedFile() file: Express.Multer.File, @User() user) {
     if (user.logo) {
       try {
@@ -88,6 +87,7 @@ export class UserController {
       } catch {}
     }
     const imageId = await this._fileSystemService.storeImage(file);
+    await this._userService.updateReferralsInfo({ logo: imageId }, user._id);
     return !!(await this._userService.updateUserInfo(
       { logo: imageId },
       user._id,
