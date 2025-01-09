@@ -45,7 +45,7 @@ export class EmailService {
       });
     } catch {}
 
-    console.log('Message sent: %s', info.messageId);
+    console.log('Message sent: %s', info?.messageId);
     return info;
   }
 
@@ -128,12 +128,13 @@ ${
     }
     
     ${quote.status == QuoteStatusEnum.CANCELED ? ` <p>This shipment was canceled.</p>` : ''}
+    ${quote.isQuoteAccepted ? ` <p style="margin-top: 0px; margin-bottom: 15px">Your quote was accepted.</p>` : ''}
     
     
     ${
       quote.newBid
         ? `<div style="margin-top: 0px; margin-bottom: 5px">
-  <span style="font-size: 16px; color: black; font-weight: 500;">${quote.newBid.bidAuthor}</span> send you a quote:
+  <span style="font-size: 16px; color: black; font-weight: 500;">${quote.newBid.bidAuthor}</span>:
   
   <div style="margin-bottom: 5px;font-size: 14px; display: block; margin-top: 5px;">
      <strong style="margin:0; white-space: nowrap">Per load: </strong> <span style="color: #0020DD">${quote.newBid.amount}</span>

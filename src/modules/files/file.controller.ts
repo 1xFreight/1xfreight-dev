@@ -3,6 +3,7 @@ import { FileSystemService } from './file.service';
 import { Response } from 'express';
 import { Auth } from '../auth/decorators/auth.decorator';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { ObjectId } from 'mongodb';
 
 @Controller('file-system')
 export class FileSystemController {
@@ -18,6 +19,9 @@ export class FileSystemController {
 
   @Get('image/:id')
   async getImage(@Param('id') id: string, @Res() res: Response) {
+    console.log(id);
+    if (!id) return;
+
     const { data, filename, contentType } =
       await this.fileSystemService.getImage(id);
 

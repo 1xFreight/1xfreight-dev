@@ -19,6 +19,12 @@ import {
 } from '../../carrier/entitites/carrier.entity';
 import { Bid, BidDocument } from '../../bid/bid.entity';
 import { NotificationsService } from '../../notifications/notifications.service';
+import { plainToInstance } from 'class-transformer';
+import { UserDto } from '../../user/dto/user.dto';
+import { ExcelExportDto } from '../dto/excel-export.dto';
+import { formatDate } from '../../common/utils/date.util';
+import { QuoteTypeEnum } from '../../common/enums/quote-type.enum';
+import { QuoteEnum } from '../../common/enums/quote.enum';
 
 @Injectable()
 export class QuoteService {
@@ -228,7 +234,7 @@ export class QuoteService {
       );
     }
 
-    let sort: any = { updatedAt: -1 };
+    let sort: any = { createdAt: -1 };
 
     if (params.sort) {
       // Check if params.sort is a string and can be parsed
@@ -609,7 +615,7 @@ export class QuoteService {
       });
     }
 
-    let sort: any = { updatedAt: -1 };
+    let sort: any = { createdAt: -1 };
 
     if (params.sort) {
       // Check if params.sort is a string and can be parsed
@@ -962,7 +968,7 @@ export class QuoteService {
     };
   }
 
-  async getUserTemplates(user_id: string) {
+  async getUserTemplates(user_id: string, params: PaginationWithFilters) {
     return this._templateModel
       .aggregate([
         {
@@ -974,6 +980,13 @@ export class QuoteService {
             localField: 'quote_id',
             foreignField: '_id',
             as: 'quote_data',
+            pipeline: [
+              {
+                $match: {
+                  type: params?.type ?? QuoteEnum.FTL,
+                },
+              },
+            ],
           },
         },
         {
@@ -1040,7 +1053,12 @@ export class QuoteService {
     return false;
   }
 
-  async acceptQuote(quote_id: string, bid_id: string, missingData: Array<any>) {
+  async acceptQuote(
+    quote_id: string,
+    bid_id: string,
+    missingData: Array<any>,
+    user_id: string,
+  ) {
     const bidData = (
       await this._bidModel
         .aggregate([
@@ -1114,7 +1132,7 @@ export class QuoteService {
       throw new BadRequestException('Missing data');
     }
 
-    return await this._quoteModel
+    await this._quoteModel
       .updateOne(
         { _id: new ObjectId(quote_id) },
         {
@@ -1123,7 +1141,19 @@ export class QuoteService {
           carrier_id: bidData.user_id,
         },
       )
-      .exec();
+      .exec()
+      .then(() => {
+        this._notificationService.notifyNewQuoteFromCarrier(
+          user_id,
+          quote_id,
+          bid_id,
+          {
+            isQuoteAccepted: true,
+          },
+        );
+      });
+
+    return true;
   }
 
   async exportToExcel(
@@ -1131,187 +1161,45 @@ export class QuoteService {
     user_id: string,
     params: PaginationWithFilters,
   ) {
-    let _aggregate: any[] = [];
-    let matchStage: any = {
-      $match: {
-        $or: [{ user_id: user_id }, { referral_id: user_id }],
-        $expr: {
-          $not: {
-            $in: [
-              '$status',
-              [QuoteStatusEnum.REQUESTED, QuoteStatusEnum.CANCELED],
-            ],
-          },
-        },
-      },
-    };
+    // const data = await this._quoteModel.aggregate(_aggregate).exec();
 
-    if (params?.owner) {
-      matchStage = {
-        $match: {
-          referral_id: user_id,
-          user_id: { $in: params.owner.split(',') },
-        },
+    const data = (await this.getShipments(user_id, params)).quotes;
+    const dataFormatted = data.map((quote) => {
+      return {
+        ...quote,
+        origin: quote.firstPickup.address,
+        destination: quote.firstDrop.address,
+        carrier: quote.local_carrier.name,
+        pickup: formatDate(quote.firstPickup.date),
+        delivery: formatDate(quote.firstDrop.date),
+        hazard: quote.details_.hazardous_goods,
+        goods_value: quote.details_.goods_value,
+        weight: quote.details_.weight + ' ' + quote.details_.weight_unit,
+        quantity: quote.details_.quantity,
+        commodity: quote.details_.commodity,
+        createdAt: formatDate(quote.createdAt),
+        deadline_date: formatDate(quote.deadline_date),
+        deadline_time: quote.deadline_time,
+        references: quote.references?.join(', '),
       };
-    }
+    });
 
-    if (params?.id) {
-      matchStage = {
-        $match: {
-          _id: new Types.ObjectId(params.id),
-          $or: [{ user_id: user_id }, { referral_id: user_id }],
-        },
-      };
-    }
-
-    _aggregate = [
-      ..._aggregate,
-      matchStage,
-      { $sort: { createdAt: -1 } },
-      {
-        $project: {
-          subscribers: 0,
-          declined: 0,
-        },
-      },
-      {
-        $addFields: {
-          user_id_obj: { $toObjectId: '$carrier_id' },
-        },
-      },
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'user_id_obj',
-          foreignField: '_id',
-          as: 'carrier',
-        },
-      },
-      {
-        $addFields: {
-          carrier: { $arrayElemAt: ['$carrier', 0] },
-        },
-      },
-      {
-        $addFields: {
-          bid_id_ibj: { $toObjectId: '$bid_id' },
-        },
-      },
-      {
-        $lookup: {
-          from: 'bids',
-          localField: 'bid_id_ibj',
-          foreignField: '_id',
-          as: 'bid',
-        },
-      },
-      {
-        $addFields: {
-          bid: { $arrayElemAt: ['$bid', 0] },
-          full_id: { $toString: '$_id' },
-        },
-      },
-      {
-        $addFields: {
-          carrier: '$carrier.email',
-          total_amount: {
-            $multiply: ['$bid.amount', '$load_number'],
-          },
-          per_load: '$bid.amount',
-          load_id: {
-            $substrBytes: [
-              '$full_id',
-              { $subtract: [{ $strLenBytes: '$full_id' }, 7] },
-              7,
-            ],
-          },
-        },
-      },
-      {
-        $project: {
-          load_id: 1,
-          full_id: 1,
-          quote_type: 1,
-          status: 1,
-          total_miles: 1,
-          total_amount: 1,
-          per_load: 1,
-          currency: 1,
-          carrier: 1,
-          deadline_date: 1,
-          deadline_time: 1,
-          _id: 0,
-        },
-      },
-    ];
-
-    if (params?.searchText) {
-      _aggregate.push({
-        $match: {
-          $or: [
-            {
-              'addresses.address': {
-                $regex: params?.searchText,
-                $options: 'i',
-              },
-            },
-            { references: { $regex: params?.searchText, $options: 'i' } },
-            {
-              $expr: {
-                $regexMatch: {
-                  input: { $toString: '$_id' },
-                  regex: `${params?.searchText}$`,
-                  options: 'i',
-                },
-              },
-            },
-          ],
-        },
-      });
-    }
-
-    if (params?.pickupDate) {
-      _aggregate.push({
-        $match: {
-          addresses: {
-            $elemMatch: {
-              date: { $regex: `^${params.pickupDate}`, $options: 'i' },
-              address_type: AddressTypeEnum.PICK,
-            },
-          },
-        },
-      });
-    }
-
-    if (params?.dropDate) {
-      _aggregate.push({
-        $match: {
-          addresses: {
-            $elemMatch: {
-              date: { $regex: `^${params.dropDate}`, $options: 'i' },
-              address_type: AddressTypeEnum.DROP,
-            },
-          },
-        },
-      });
-    }
-
-    const data = await this._quoteModel.aggregate(_aggregate).exec();
+    const dataLean = plainToInstance(ExcelExportDto, dataFormatted, {
+      excludeExtraneousValues: true,
+    });
 
     // Convert data to worksheet
-    const worksheet = XLSX.utils.json_to_sheet(data);
+    const worksheet = XLSX.utils.json_to_sheet(dataLean);
 
     // Create a new workbook and add the worksheet
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
 
     // Write the workbook to a buffer
-    const excelBuffer = XLSX.write(workbook, {
+    return XLSX.write(workbook, {
       bookType: 'xlsx',
       type: 'buffer',
     });
-
-    return excelBuffer;
   }
 
   async addPoToQuote(

@@ -15,6 +15,7 @@ import { chatDateFormat, formatDate } from '../common/utils/date.util';
 import { formatBytes } from '../common/utils/file.utils';
 import { Notification, NotificationDocument } from './notification.entity';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { currencyStringToSymbol } from '../common/utils/currency';
 
 @Injectable()
 export class NotificationsService {
@@ -294,12 +295,12 @@ export class NotificationsService {
       },
     );
 
-    const pickupFirstAddress = formattedPickupAddresses.filter(
+    const pickupFirstAddress = formattedPickupAddresses.find(
       ({ order }) => order == 1,
-    )[0];
-    const dropLastAddress = formattedDropAddresses.filter(
+    );
+    const dropLastAddress = formattedDropAddresses.find(
       ({ order }) => order == drop.length,
-    )[0];
+    );
 
     const url = process.env.URL;
 
@@ -571,12 +572,12 @@ export class NotificationsService {
       },
     );
 
-    const pickupFirstAddress = formattedPickupAddresses.filter(
+    const pickupFirstAddress = formattedPickupAddresses.find(
       ({ order }) => order == 1,
-    )[0];
-    const dropLastAddress = formattedDropAddresses.filter(
+    );
+    const dropLastAddress = formattedDropAddresses.find(
       ({ order }) => order == drop.length,
-    )[0];
+    );
     const url = process.env.URL;
 
     quote.subscribers.map(async (subscriberEmail) => {
@@ -1154,6 +1155,7 @@ export class NotificationsService {
     user_id: string,
     quote_id: string,
     bid_id: string,
+    options: any = null,
   ) {
     const quote = (
       await this._quoteModel
@@ -1292,14 +1294,16 @@ export class NotificationsService {
         .aggregate([
           {
             $match: {
-              user_id,
+              // user_id,
               _id: new ObjectId(bid_id),
               quote_id,
             },
           },
           {
             $addFields: {
-              user_id_obj: new ObjectId(user_id),
+              user_id_obj: {
+                $toObjectId: '$user_id',
+              },
             },
           },
           {
@@ -1319,12 +1323,23 @@ export class NotificationsService {
         .exec()
     )[0];
 
-    const localCarrierData = await this._carrierModel
+    console.log(bid);
+
+    let localCarrierData = await this._carrierModel
       .findOne({
         user_id: quote.user_id,
         email: bid.user.email,
       })
       .exec();
+
+    if (!localCarrierData) {
+      await this._carrierModel
+        .findOne({
+          user_id: quote.user_id,
+          email: bid.carrier_id, // add email
+        })
+        .exec();
+    }
 
     const quoteDetails = { ...quote.details, ...quote };
     const items = quote.items || [];
@@ -1410,7 +1425,7 @@ export class NotificationsService {
         amount: bid.amount + ' ' + quote.currency,
         validUntil: formatDate(bid.valid_until),
         transitTime: bid.transit_time + ' days',
-        bidAuthor: localCarrierData.name,
+        bidAuthor: localCarrierData?.name ?? '',
         estPerMile:
           (bid.amount / quote.total_miles).toFixed(2) + ' ' + quote.currency,
         notes: bid.notes,
@@ -1421,27 +1436,46 @@ export class NotificationsService {
         density: quoteDetails.density ?? null,
         weight_unit: quoteDetails.weight_unit ?? null,
       },
+      isQuoteAccepted: !!options?.isQuoteAccepted,
     };
 
     const htmlNew = this._emailService.generateQuoteEmailHTML(htmlQuoteDetails);
+    const sendInformation = {
+      from: `${localCarrierData?.name ?? ''} <hello@1xFreight.com>`,
+      to: quoteAuthor.email,
+      subject: `${localCarrierData?.name ?? ''} send you a quote for load: ${pickupFirstAddress.address} to ${dropLastAddress.address} [${quote_id.substring(quote_id.length - 7, quote_id.length).toUpperCase()}]`,
+      notificationUserId: quoteAuthor._id,
+    };
 
-    await this._emailService.sendMail(
-      `${localCarrierData.name} <hello@1xFreight.com>`,
-      quoteAuthor.email,
-      `${localCarrierData.name} send you a quote: ${pickupFirstAddress.address} to ${dropLastAddress.address} [${quote_id.substring(quote_id.length - 7, quote_id.length).toUpperCase()}]`,
-      '',
-      htmlNew,
-    );
+    if (options?.isQuoteAccepted) {
+      sendInformation.from = `${quoteAuthor.name} <hello@1xFreight.com>`;
+      sendInformation.to = localCarrierData.email;
+      sendInformation.subject = `${quoteAuthor.name} accepted your quote for load: ${pickupFirstAddress.address} to ${dropLastAddress.address} [${quote_id.substring(quote_id.length - 7, quote_id.length).toUpperCase()}]`;
+      sendInformation.notificationUserId = bid.user_id;
+    }
+
+    if (options?.isAmountUpdated) {
+      const currency = currencyStringToSymbol(quote?.currency);
+      sendInformation.subject = `${localCarrierData?.name ?? ''} updated quote amount from ${options?.oldAmount} ${currency} to ${options?.amount} ${currency}  for load: ${pickupFirstAddress.address} to ${dropLastAddress.address} [${quote_id.substring(quote_id.length - 7, quote_id.length).toUpperCase()}]`;
+    } else {
+      await this._emailService.sendMail(
+        sendInformation.from,
+        sendInformation.to,
+        sendInformation.subject,
+        '',
+        htmlNew,
+      );
+    }
 
     const notification = await this._notificationModel.create({
-      user_id: quoteAuthor._id,
-      text: `Send you a quote : ${pickupFirstAddress.address} to ${dropLastAddress.address}, [${quote_id.substring(quote_id.length - 7, quote_id.length).toUpperCase()}]`,
+      user_id: sendInformation.notificationUserId,
+      text: sendInformation.subject,
       button_name: `view quote`,
       button_link: `/goto/${quote_id}`,
     });
 
     this.eventEmitter.emit('new-notification', {
-      room: quoteAuthor._id,
+      room: sendInformation.notificationUserId,
       data: notification,
     });
   }

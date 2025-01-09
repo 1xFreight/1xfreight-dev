@@ -44,7 +44,7 @@ export class AuthService {
   // Tokens default expire in 30 * 24 * 60 * 60 = 30 days
   generateTokens(user: User, expiresIn = 30 * 24 * 60 * 60) {
     const payload = {
-      _id: user._id,
+      _id: user?._id,
       email: user.email,
       role: user.role,
       referral_id: user?.referral_id ?? null,

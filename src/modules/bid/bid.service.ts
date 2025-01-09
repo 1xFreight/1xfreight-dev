@@ -49,14 +49,23 @@ export class BidService {
   }
 
   async updateBidAmount(user_id: string, quote_id: string, amount: number) {
-    return this._bidModel.updateOne({ user_id, quote_id }, { amount }).exec();
-  }
+    const originalBid = await this._bidModel
+      .findOne({ user_id, quote_id })
+      .exec();
 
-  async testIt() {
-    this._notificationService.notifyNewQuoteFromCarrier(
-      '66bb96869803a4590729d796',
-      '670e82e63381f5a58aa50363',
-      '670e83133381f5a58aa5037e',
+    await this._bidModel.updateOne({ user_id, quote_id }, { amount }).exec();
+
+    await this._notificationService.notifyNewQuoteFromCarrier(
+      user_id,
+      quote_id,
+      originalBid._id.toString(),
+      {
+        isAmountUpdated: true,
+        oldAmount: originalBid.amount,
+        amount,
+      },
     );
+
+    return true;
   }
 }

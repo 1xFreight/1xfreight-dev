@@ -74,8 +74,8 @@ export class QuoteController {
     UserRolesEnum.SHIPPER_DEMO,
     UserRolesEnum.SHIPPER_MEMBER,
   ])
-  async getTemplates(@User() user) {
-    return this._quoteService.getUserTemplates(user._id);
+  async getTemplates(@User() user, @Query() params: PaginationWithFilters) {
+    return this._quoteService.getUserTemplates(user._id, params);
   }
 
   @Auth()
@@ -107,6 +107,7 @@ export class QuoteController {
       body.quote_id,
       body.bid_id,
       body.missingData,
+      user._id,
     ));
   }
 

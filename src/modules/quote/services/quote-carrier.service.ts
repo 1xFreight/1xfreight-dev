@@ -41,7 +41,7 @@ export class QuoteCarrierService {
   }
 
   async getCarrierActiveLoads(user_id: string, params: PaginationWithFilters) {
-    let sort: any = { updatedAt: -1 };
+    let sort: any = { createdAt: -1 };
 
     if (params.sort) {
       // Check if params.sort is a string and can be parsed
@@ -562,8 +562,26 @@ export class QuoteCarrierService {
   }
 
   async getCarrierHistory(user_id: string, params: PaginationWithFilters) {
+    let sort: any = { createdAt: -1 };
+
+    if (params.sort) {
+      // Check if params.sort is a string and can be parsed
+      if (typeof params.sort === 'string') {
+        try {
+          const sortObj = JSON.parse(params.sort);
+          if (sortObj && Object.keys(sortObj).length) {
+            sort = sortObj;
+          }
+        } catch (error) {
+          console.error('Invalid JSON in sort parameter:', error);
+        }
+      } else if (typeof params.sort === 'object') {
+        // If it's already an object, assign it directly
+        sort = params.sort;
+      }
+    }
+
     const _aggregate: any[] = [
-      { $sort: { createdAt: -1 } },
       {
         $match: {
           carrier_id: user_id,
@@ -610,6 +628,7 @@ export class QuoteCarrierService {
         $addFields: {
           user_id_obj: { $toObjectId: '$user_id' },
           bid_id_obj: { $toObjectId: '$bid_id' },
+          quote_id_str: { $toString: '$_id' },
         },
       },
       {
@@ -639,13 +658,92 @@ export class QuoteCarrierService {
       {
         $addFields: {
           carrier_bid: { $arrayElemAt: ['$carrier_bid', 0] },
+          author: { $arrayElemAt: ['$user', 0] },
+          quote_id_short: {
+            $substrBytes: [
+              '$quote_id_str',
+              { $subtract: [{ $strLenBytes: '$quote_id_str' }, 7] },
+              7,
+            ],
+          },
+          details_: {
+            $arrayElemAt: ['$details', 0],
+          },
+        },
+      },
+      {
+        $addFields: {
+          details_goods_value_str: {
+            $toString: '$details_.goods_value',
+          },
+          details_weight_str: {
+            $toString: '$details_.weight',
+          },
+          carrier_bid_amount_str: {
+            $toString: '$carrier_bid.amount',
+          },
         },
       },
       {
         $project: {
           user_id_obj: 0,
           bid_id_obj: 0,
+          decline: 0,
+          subscribers: 0,
+          details_: 0,
         },
+      },
+      {
+        $addFields: {
+          // Adding the firstPickup field
+          firstPickup: {
+            $first: {
+              $filter: {
+                input: '$addresses',
+                as: 'address',
+                cond: {
+                  $and: [
+                    { $eq: ['$$address.address_type', 'pickup'] }, // Match address_type = 'pickup'
+                    { $eq: ['$$address.order', 1] }, // Match order = 1
+                  ],
+                },
+              },
+            },
+          },
+          // Adding the firstDrop field
+          firstDrop: {
+            $first: {
+              $filter: {
+                input: '$addresses',
+                as: 'address',
+                cond: {
+                  $and: [
+                    { $eq: ['$$address.address_type', 'drop'] }, // Match address_type = 'pickup'
+                    { $eq: ['$$address.order', 1] }, // Match order = 1
+                  ],
+                },
+              },
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          quote_id_str: { $toString: '$_id' },
+          'firstPickup.dateAsDate': {
+            $dateFromString: {
+              dateString: '$firstPickup.date', // Properly wrapping the date string in an object
+            },
+          },
+          'firstDrop.dateAsDate': {
+            $dateFromString: {
+              dateString: '$firstDrop.date', // Properly wrapping the date string in an object
+            },
+          },
+        },
+      },
+      {
+        $sort: sort,
       },
     ];
 
@@ -669,14 +767,58 @@ export class QuoteCarrierService {
                 $options: 'i',
               },
             },
-            { references: { $regex: params?.searchText, $options: 'i' } },
             {
-              $expr: {
-                $regexMatch: {
-                  input: { $toString: '$_id' },
-                  regex: `${params?.searchText}$`,
-                  options: 'i',
-                },
+              'addresses.company_name': {
+                $regex: params?.searchText,
+                $options: 'i',
+              },
+            },
+            {
+              quote_id_short: {
+                $regex: params?.searchText,
+                $options: 'i',
+              },
+            },
+            {
+              type: {
+                $regex: params?.searchText,
+                $options: 'i',
+              },
+            },
+            {
+              equipments: {
+                $regex: params?.searchText,
+                $options: 'i',
+              },
+            },
+            {
+              references: {
+                $regex: params?.searchText,
+                $options: 'i',
+              },
+            },
+            {
+              details_goods_value_str: {
+                $regex: `^${params?.searchText}`,
+                $options: 'i',
+              },
+            },
+            {
+              details_weight_str: {
+                $regex: `^${params?.searchText}`,
+                $options: 'i',
+              },
+            },
+            {
+              carrier_bid_amount_str: {
+                $regex: `^${params?.searchText}`,
+                $options: 'i',
+              },
+            },
+            {
+              status: {
+                $regex: `^${params?.searchText}`,
+                $options: 'i',
               },
             },
           ],

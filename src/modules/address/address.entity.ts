@@ -1,6 +1,9 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
-import { AddressTypeEnum } from '../common/enums/address-type.enum';
+import {
+  AddressExtraTypeEnum,
+  AddressTypeEnum,
+} from '../common/enums/address-type.enum';
 import { Quote } from '../quote/entities/quote.entity';
 import { User } from '../user/entities/user.entity';
 
@@ -44,6 +47,9 @@ export class Address {
 
   @Prop({ enum: AddressTypeEnum })
   address_type: string;
+
+  @Prop({ enum: AddressExtraTypeEnum })
+  extra_type: string;
 
   @Prop({ default: 1 })
   order: number;

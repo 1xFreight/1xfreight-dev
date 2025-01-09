@@ -12,6 +12,7 @@ import { ObjectId } from 'mongodb';
 import { NotificationsService } from '../../notifications/notifications.service';
 import { User, UserDocument } from '../../user/entities/user.entity';
 import { UserStatusEnum } from '../../common/enums/user-status.enum';
+import { Bid, BidDocument } from '../../bid/bid.entity';
 
 @Injectable()
 export class QuoteCreateService {
@@ -26,6 +27,7 @@ export class QuoteCreateService {
     private readonly _addressService: AddressService,
     private readonly _notificationService: NotificationsService,
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
+    @InjectModel(Bid.name) private readonly biModel: Model<BidDocument>,
   ) {}
 
   async createQuoteFtlLtl(quote: any, user_id: string, referral_id?: string) {
@@ -119,6 +121,8 @@ export class QuoteCreateService {
   }
 
   async duplicateLoad(user_id: string, payload: any, referral_id?: string) {
+    const keepTheSameCarrier = payload?.keepTheSameCarrier ?? false;
+
     const originalQuote = await this._quoteModel
       .aggregate([
         {
@@ -138,6 +142,15 @@ export class QuoteCreateService {
         {
           $addFields: {
             quote_id_str: { $toString: '$_id' },
+            carrier_id_obj: { $toObjectId: '$carrier_id' },
+          },
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'carrier_id_obj',
+            foreignField: '_id',
+            as: 'carrier_user',
           },
         },
         {
@@ -209,8 +222,12 @@ export class QuoteCreateService {
       referral_id,
     };
 
+    if (keepTheSameCarrier) {
+      newQuote.subscribers = [originalQuote[0].carrier_user[0]?.email];
+    }
+
     const savedQuote = await (await this._quoteModel.create(newQuote)).save();
-    const quote_id = savedQuote._id;
+    const quote_id = savedQuote?._id;
 
     const details = await (
       await this._shipmentModel.create({
@@ -226,12 +243,23 @@ export class QuoteCreateService {
       newAddresses.map(async (address) => {
         return this._addressService.create({ ...address, quote_id });
       }),
-    ).then(() => this._notificationService.notifyNewQuote(quote_id.toString()));
+    );
 
     if (originalQuote[0].items?.length) {
-      originalQuote[0].items.map((item) =>
-        this._itemModel.create({ ...item, quote_id, _id: undefined }),
+      await Promise.all(
+        originalQuote[0].items.map(
+          async (item) =>
+            await (
+              await this._itemModel.create({
+                ...item,
+                quote_id,
+                _id: undefined,
+              })
+            ).save(),
+        ),
       );
     }
+
+    await this._notificationService.notifyNewQuote(quote_id.toString());
   }
 }
